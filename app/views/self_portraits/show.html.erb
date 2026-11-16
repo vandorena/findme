@@ -1,0 +1,42 @@
+<main class="twin">
+  <p class="status"><a href="<%= root_path %>">&larr; the mirror</a></p>
+
+  <% if @identity %>
+    <h1>your synthetic twin</h1>
+    <p class="muted">Signed in as <%= @identity["name"] %>. Give us a photo of yourself and we rebuild
+      the nearest face from our synthetic set. The photo is read once and thrown away.</p>
+
+    <div data-controller="twin" data-twin-url-value="<%= self_portrait_path %>">
+      <pre class="screen" data-twin-target="screen" aria-label="Synthetic twin"></pre>
+      <p class="status" data-twin-target="status">waiting for a photo</p>
+
+      <label class="upload">
+        <input type="file" accept="image/png,image/jpeg" data-twin-target="file" data-action="twin#submit">
+        choose a photo of yourself
+      </label>
+
+      <section>
+        <h2>what we read in your face</h2>
+        <pre data-twin-target="guesses"></pre>
+      </section>
+    </div>
+
+    <%= button_to "sign out", session_path, method: :delete, class: "link" %>
+  <% else %>
+    <h1>see your synthetic twin</h1>
+    <p class="muted">This one is about you, not the device. Sign in to confirm it is you, then hand us a
+      photo of yourself and we rebuild the closest match from our synthetic face set. We never look anyone
+      else up, and the photo is discarded after it is read.</p>
+
+    <%= form_with url: session_path, method: :post, class: "signin" do |f| %>
+      <%= f.text_field :name, placeholder: "your name (optional)", autocomplete: "off" %>
+      <%= f.submit "sign in" %>
+    <% end %>
+    <p class="muted small">Development placeholder sign-in &mdash; it stands in for a real provider and verifies nothing.</p>
+  <% end %>
+
+  <footer>
+    In this mode your photo is sent to a third-party model (TypeSafe) to read its visible features, then
+    discarded. Nothing is stored. We only ever build a twin of the person who is signed in.
+  </footer>
+</main>

@@ -1,0 +1,25 @@
+<main data-controller="portrait" data-portrait-url-value="<%= profile_path %>">
+  <pre class="screen" data-portrait-target="screen" aria-label="ASCII portrait of who we think you are"></pre>
+  <p class="status" data-portrait-target="status">looking at you</p>
+
+  <input class="bait" data-portrait-target="bait" type="text" autocomplete="off" spellcheck="false"
+         placeholder="say something to the mirror" aria-label="Say something to the mirror">
+
+  <section>
+    <h2>who we think you are</h2>
+    <pre data-portrait-target="guesses"></pre>
+  </section>
+
+  <section>
+    <h2>what gave you away</h2>
+    <pre data-portrait-target="signals"></pre>
+  </section>
+
+  <p class="status"><a href="<%= self_portrait_path %>">or build a twin from your own photo &rarr;</a></p>
+
+  <footer>
+    This page reads what your browser reveals without asking (device, display, settings, rough location from your
+    network, and how you move and type, though never what you type) and sends a summary to our server, which may pass
+    it to a third-party model (TypeSafe) to guess who you are. Your IP address is not passed on and nothing is stored. The guesses are often wrong.
+  </footer>
+</main>
