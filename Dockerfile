@@ -1,11 +1,20 @@
 # syntax=docker/dockerfile:1
-# check=error=true
+# check=error=true;skip=SecretsUsedInArgOrEnv
+#
+# skip=SecretsUsedInArgOrEnv: Coolify rewrites this file before building it,
+# inserting an `ARG <NAME>` after every FROM for each environment variable it is
+# told to expose at build time. Secret-shaped names among them (RAILS_MASTER_KEY,
+# TYPESAFE_API_KEY) trip SecretsUsedInArgOrEnv, and `check=error=true` turns that
+# warning into a failed build. Nothing in this file declares such an ARG itself.
+#
+# The skip only stops the build failing -- it does not make the practice safe.
+# ARG values are readable with `docker history`, so keep those variables *off*
+# at build time in Coolify. Nothing below needs them: assets are precompiled
+# under SECRET_KEY_BASE_DUMMY=1. They are runtime configuration only.
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
+# This Dockerfile is designed for production, not development. Deployed on Coolify, or build'n'run by hand:
 # docker build -t me .
 # docker run -d -p 80:3000 -e RAILS_MASTER_KEY=<value from config/master.key> --name me me
-
-# For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
 ARG RUBY_VERSION=4.0.5
@@ -14,9 +23,10 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages
+# Install base packages. libvips backs ImagePrep's photo resizing; ruby-vips
+# binds it over FFI at runtime, so it is only needed here, not in the build stage.
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 sqlite3 && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
@@ -69,9 +79,16 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
-# Entrypoint prepares the database.
-ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+# No ENTRYPOINT: bin/docker-entrypoint runs db:prepare, and this app has no
+# database -- no models, no migrations, cookie sessions, and no production
+# database in config/database.yml, so db:prepare would crash the boot. Restore
+# the entrypoint (and a /rails/storage volume) if a database is ever added.
 
-# Start the server by default, this can be overwritten at runtime
+# Coolify uses this instead of its own health check settings. /up answers 200
+# over plain HTTP, so force_ssl does not get in the way.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:3000/up || exit 1
+
+# Start Puma directly (no Thruster in the bundle); Coolify's proxy terminates TLS in front of it
 EXPOSE 3000
 CMD ["./bin/rails", "server"]
