@@ -45,3 +45,6 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+# The solver sidecar has its own image (sidecar/Dockerfile).
+/sidecar/

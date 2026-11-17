@@ -1,0 +1,7 @@
+fastapi==0.163.1
+uvicorn==0.54.0
+pydantic==2.14.3
+numpy==2.5.5
+scipy==1.18.1
+tifffile==2026.11.16
+imagecodecs==2026.11.11
