@@ -18,13 +18,22 @@ class GeoLookup
     datacenter_or_vpn: /amazon|google cloud|microsoft azure|digitalocean|ovh|hetzner|linode|akamai|m247|datacamp|vpn|hosting|cloudflare/i
   }.freeze
 
-  def self.instance
-    @instance ||= new
+  class << self
+    attr_writer :instance
+
+    def instance
+      @instance ||= new
+    end
   end
 
   def initialize(city_db: CITY_DB, asn_db: ASN_DB)
     @city = open_db(city_db)
     @asn = open_db(asn_db)
+  end
+
+  # False when the City database is missing: then nobody can be placed, whatever their address.
+  def available?
+    !@city.nil?
   end
 
   def call(ip)

@@ -19,7 +19,7 @@ class HuntsController < ApplicationController
 
   def create
     prior = ip_prior
-    return render(json: { error: "unplaceable" }, status: :unprocessable_content) unless prior
+    return unplaceable unless prior
 
     solver.stop(session[:hunt]) if session[:hunt]
     started = Time.current
@@ -116,6 +116,29 @@ class HuntsController < ApplicationController
     elsif (dev = Rails.configuration.x.dev_prior)
       { lat: dev[0], lon: dev[1], radius_km: dev[2], country_code: nil, place: "the dev prior (ME_DEV_PRIOR)" }
     end
+  end
+
+  # Two very different failures: a server without the GeoLite2 database (every visitor fails), or one
+  # visitor whose address has no location. A private address usually means a proxy in front of Rails is
+  # not passing the visitor's address on.
+  def unplaceable
+    reason =
+      if !GeoLookup.instance.available?
+        "no_geo_db"
+      elsif private_address?(request.remote_ip)
+        "private_address"
+      else
+        "unplaceable"
+      end
+    Rails.logger.warn("hunt refused: #{reason}") unless reason == "unplaceable"
+    render json: { error: reason }, status: :unprocessable_content
+  end
+
+  def private_address?(ip)
+    addr = IPAddr.new(ip)
+    addr.private? || addr.loopback? || addr.link_local?
+  rescue IPAddr::InvalidAddressError
+    false
   end
 
   def distance_m(a, b)

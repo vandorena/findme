@@ -80,14 +80,19 @@ export default class extends Controller {
     this.statusTarget.textContent = `listening. Your network says ${hunt.prior.place || "somewhere"}, give or take ${hunt.prior.radius_km} km`
   }
 
-  failStart(response) {
+  async failStart(response) {
     this.startTarget.disabled = false
+    const reasons = {
+      no_geo_db: "This server has no IP location database, so it can't place anyone. That's our fault, not yours.",
+      private_address: "This server sees a private address instead of yours (a proxy setting on our side), so it can't place you."
+    }
+    const error = response ? await response.json().then(body => body.error, () => null) : null
     const messages = {
       422: "We can't place your network at all (a VPN or a private address?), so there is nowhere for the planes to narrow down.",
       503: "Too many people are being hunted right now. Try again in a minute.",
       502: "The solver is down. Try again later."
     }
-    this.showError(messages[response?.status] || "Could not start the hunt.")
+    this.showError(reasons[error] || messages[response?.status] || "Could not start the hunt.")
     this.statusTarget.textContent = ""
   }
 

@@ -41,6 +41,20 @@ class HuntFlowTest < ActionDispatch::IntegrationTest
     assert_empty @solver.calls
   end
 
+  test "a refusal says whether the server lacks its database or sees a private address" do
+    Rails.configuration.x.dev_prior = nil
+
+    GeoLookup.instance = GeoLookup.new(city_db: "/missing", asn_db: "/missing")
+    post hunt_path, params: { cap_s: 180 }, as: :json
+    assert_equal "no_geo_db", response.parsed_body["error"]
+
+    GeoLookup.instance = Struct.new(:available?) { def call(_ip) = nil }.new(true)
+    post hunt_path, params: { cap_s: 180 }, as: :json
+    assert_equal "private_address", response.parsed_body["error"]
+  ensure
+    GeoLookup.instance = nil
+  end
+
   test "chunks are relayed to the solver with their timestamp" do
     post hunt_path, params: { cap_s: 180 }, as: :json
     pcm = "\x00\x01".b * 40_000
