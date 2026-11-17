@@ -50,8 +50,3 @@ group :test do
 end
 
 gem "maxmind-db", "~> 1.5"
-
-# Image resizing/transcoding for uploaded photos (ImagePrep). require: false so
-# boot never dlopens libvips; ImagePrep::VipsBackend loads it lazily and the app
-# runs fine without the system library installed.
-gem "ruby-vips", "~> 2.3", require: false
