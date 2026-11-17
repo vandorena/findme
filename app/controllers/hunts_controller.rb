@@ -114,7 +114,7 @@ class HuntsController < ApplicationController
       { lat: geo.latitude, lon: geo.longitude, radius_km: [ geo.accuracy_radius.to_i, MIN_RADIUS_KM ].max,
         country_code: geo.country_code, place: place }
     elsif (dev = Rails.configuration.x.dev_prior)
-      { lat: dev[0], lon: dev[1], radius_km: dev[2], country_code: nil, place: "ME_DEV_PRIOR" }
+      { lat: dev[0], lon: dev[1], radius_km: dev[2], country_code: nil, place: "the dev prior (ME_DEV_PRIOR)" }
     end
   end
 
