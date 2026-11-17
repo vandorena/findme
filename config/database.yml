@@ -26,6 +26,7 @@ test:
 #
 # Similarly, if you deploy your application as a Docker container, you must
 # ensure the database is located in a persisted volume.
+# Mount /rails/storage as a volume (see Dockerfile): it holds the one results table.
 production:
   <<: *default
-  # database: path/to/persistent/storage/production.sqlite3
+  database: storage/production.sqlite3

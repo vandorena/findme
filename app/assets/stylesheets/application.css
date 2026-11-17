@@ -3,6 +3,8 @@
   --ink: #f2f2f2;
   --dim: #8a8a8a;
   --paper: #000;
+  --amber: #ffb000;
+  --line: #333;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
@@ -19,49 +21,25 @@ body {
   line-height: 1.5;
 }
 
-main {
+a {
+  color: var(--ink);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.hunt {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 16px;
   gap: 16px;
+  width: min(100%, 110ch);
+  margin: 0 auto;
+  padding: 16px;
 }
 
-/* 96 columns by 48 rows: sized so the whole grid fits the viewport. */
-.screen {
-  margin: 0;
-  font-size: min(1.6vw, 1.45vh);
-  line-height: 1.2;
-  letter-spacing: 0;
-  user-select: none;
-  overflow: hidden;
-}
-
-.status {
-  margin: 0;
-  color: var(--dim);
-}
-
-.bait {
-  width: min(100%, 36ch);
-  padding: 8px 10px;
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--dim);
-  font: inherit;
-  text-align: center;
-}
-
-.bait:focus-visible {
-  outline: 1px solid var(--ink);
-  outline-offset: 2px;
-}
-
-section {
-  width: min(100%, 80ch);
-}
-
-section h2 {
+.hunt h1,
+.hunt h2 {
   margin: 0 0 6px;
   font-size: inherit;
   font-weight: normal;
@@ -70,38 +48,26 @@ section h2 {
   letter-spacing: 0.1em;
 }
 
-section pre {
+.hunt p {
+  margin: 0 0 10px;
+  max-width: 80ch;
+}
+
+.banner {
+  margin: 0 0 8px;
+  color: var(--amber);
+}
+
+pre {
   margin: 0;
   font: inherit;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-footer {
-  width: min(100%, 80ch);
-  color: var(--dim);
-  padding-bottom: 24px;
-}
-
-a {
-  color: var(--ink);
-}
-
-.twin {
-  max-width: 80ch;
-  text-align: center;
-}
-
-.twin h1 {
-  font-size: inherit;
-  font-weight: normal;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.twin section {
-  text-align: left;
-  margin: 0 auto;
+pre.table {
+  white-space: pre;
+  overflow-x: auto;
 }
 
 .muted {
@@ -112,10 +78,34 @@ a {
   font-size: 0.85em;
 }
 
-.upload,
-.signin input[type="submit"],
-.link button {
-  display: inline-block;
+.status {
+  margin: 0;
+  min-height: 1.5em;
+}
+
+.error {
+  color: var(--amber);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.controls label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+input[type="range"] {
+  accent-color: var(--amber);
+}
+
+button {
   padding: 8px 12px;
   border: 1px solid var(--dim);
   background: transparent;
@@ -124,21 +114,106 @@ a {
   cursor: pointer;
 }
 
-.upload input[type="file"] {
-  display: none;
+button:hover:not(:disabled) {
+  border-color: var(--ink);
 }
 
-.signin {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  flex-wrap: wrap;
+button:disabled {
+  color: var(--dim);
+  cursor: default;
 }
 
-.signin input[type="text"] {
-  padding: 8px 10px;
-  background: transparent;
+button:focus-visible,
+input:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spectrogram {
+  position: relative;
+  margin: 0;
+}
+
+.spectrogram canvas {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 1px solid var(--line);
+}
+
+.spectrogram .overlay {
+  position: absolute;
+  inset: 0 0 auto 0;
+  pointer-events: none;
+  border-color: transparent;
+}
+
+.map {
+  height: 320px;
+  border: 1px solid var(--line);
+  background: #111;
+}
+
+.map.pinning {
+  cursor: crosshair;
+}
+
+/* Inverted OSM tiles so the map sits in the black page; overlays stay in true colour. */
+.osm-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+}
+
+.heatmap {
+  image-rendering: pixelated;
+}
+
+.leaflet-container {
+  font: inherit;
+  background: #111;
+}
+
+.leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: var(--dim);
+}
+
+.leaflet-control-attribution a,
+.leaflet-bar a {
+  color: var(--ink) !important;
+  background: #000 !important;
+}
+
+.map-label {
+  background: #000;
   color: var(--ink);
   border: 1px solid var(--dim);
+  box-shadow: none;
   font: inherit;
+}
+
+.reveal {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+footer {
+  color: var(--dim);
+  padding: 24px 0;
+  max-width: 80ch;
+}
+
+footer a {
+  color: var(--dim);
 }

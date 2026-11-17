@@ -1,7 +1,13 @@
 # IP to coarse location and network type, from local MaxMind GeoLite2 files.
 # Returns nil when the databases are absent or the address is private.
+# latitude/longitude/accuracy_radius (km) are the hunt's search prior; they are never stored.
 class GeoLookup
-  Result = Data.define(:city, :country, :country_code, :network_type, :organization)
+  Result = Data.define(:city, :country, :country_code, :network_type, :organization,
+                       :latitude, :longitude, :accuracy_radius) do
+    def located?
+      !latitude.nil? && !longitude.nil?
+    end
+  end
 
   CITY_DB = ENV.fetch("GEOIP_CITY_DB", Rails.root.join("db/geo/GeoLite2-City.mmdb").to_s)
   ASN_DB = ENV.fetch("GEOIP_ASN_DB", Rails.root.join("db/geo/GeoLite2-ASN.mmdb").to_s)
@@ -33,7 +39,10 @@ class GeoLookup
       country: city&.dig("country", "names", "en"),
       country_code: city&.dig("country", "iso_code"),
       network_type: classify(organization),
-      organization: organization
+      organization: organization,
+      latitude: city&.dig("location", "latitude"),
+      longitude: city&.dig("location", "longitude"),
+      accuracy_radius: city&.dig("location", "accuracy_radius")
     )
   rescue IPAddr::InvalidAddressError, ArgumentError
     nil

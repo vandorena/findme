@@ -1,0 +1,82 @@
+<% content_for(:title, "find me by ear") %>
+<main class="hunt" data-controller="hunt" data-hunt-url-value="<%= hunt_path %>">
+  <header>
+    <pre class="banner" aria-hidden="true">
+ .--.         .--.
+( (  )  )))  ( (  )   find me by ear
+ '--'   )))   '--'
+    </pre>
+    <p>Give this page your microphone and nothing else. We'll try to find out where you are from the planes
+      flying over you, even the ones you can't hear.</p>
+  </header>
+
+  <section data-hunt-target="intro">
+    <h2>how</h2>
+    <p>A propeller plane hums. As it passes you, the hum slides down in pitch (the Doppler effect), and the shape
+      of that slide gives away its speed, how close it came, and the second it was closest. Every plane broadcasts
+      where it is (ADS-B), so we look for the place on the ground where a real flight, right now, would have
+      sounded exactly like what your microphone picked up. Two planes on different paths pin it down.</p>
+    <p>Most of the time no plane comes close enough. Then all we have is your network's rough location and the
+      hum of your mains power (50 Hz or 60 Hz), and you win.</p>
+
+    <h2>what we keep</h2>
+    <p>Your audio goes to our solver in 5 second pieces, stays in its memory while you listen, and is gone 30
+      seconds after you stop. At the end you can drop a pin where you really are. We keep only how far off we
+      were, and how far off your IP address alone was. No audio, no coordinates, no IP address, no account.</p>
+
+    <div class="controls">
+      <label>listen for up to
+        <input type="range" min="1" max="15" value="3" data-hunt-target="cap" data-action="input->hunt#capChanged">
+        <output data-hunt-target="capLabel">3 min</output>
+      </label>
+      <button type="button" data-hunt-target="start" data-action="hunt#start">find me</button>
+    </div>
+    <p class="muted small">Longer means better odds that a plane passes. We stop early if we're sure.
+      <a href="<%= results_path %>">How often do we win?</a></p>
+  </section>
+
+  <p class="error" data-hunt-target="error" hidden></p>
+
+  <section class="live" data-hunt-target="live" hidden>
+    <p class="status"><span data-hunt-target="status"></span> <span class="muted" data-hunt-target="clock"></span></p>
+    <div class="panels">
+      <figure class="spectrogram">
+        <canvas data-hunt-target="spectrogram"></canvas>
+        <canvas class="overlay" data-hunt-target="overlay"></canvas>
+        <figcaption class="muted small">your microphone, 40&ndash;1000 Hz, whitened so faint tones show.
+          Dashed: the curve a plane we matched should have made.</figcaption>
+      </figure>
+      <div class="map" data-hunt-target="map"></div>
+    </div>
+    <div class="controls">
+      <button type="button" data-hunt-target="stop" data-action="hunt#stop">stop and guess</button>
+      <button type="button" data-hunt-target="testFlight" data-action="hunt#testFlight" hidden>play a test flight</button>
+    </div>
+    <pre data-hunt-target="aircraft"></pre>
+    <pre class="muted small" data-hunt-target="mic"></pre>
+
+    <section class="reveal" data-hunt-target="reveal" hidden>
+      <h2>our guess</h2>
+      <p data-hunt-target="verdict"></p>
+      <div data-hunt-target="pinPrompt">
+        <p>Where are you really? Click the map, then send it. We'll store only the two distances.</p>
+        <div class="controls">
+          <button type="button" data-hunt-target="submitPin" data-action="hunt#submitPin" disabled>that's me</button>
+          <button type="button" data-action="hunt#skip">I'd rather not say</button>
+        </div>
+      </div>
+      <div data-hunt-target="score" hidden>
+        <pre></pre>
+        <p><a href="<%= root_path %>">try again</a> · <a href="<%= results_path %>">everyone's results</a></p>
+      </div>
+    </section>
+  </section>
+
+  <footer>
+    Method by <a href="https://www.youtube.com/watch?v=UytYrhYLOKI">colsto</a>; solver after
+    <a href="https://github.com/Bodila51/colsto-leak-and-mask">colsto-leak-and-mask</a>. Flight data
+    <a href="https://www.adsb.lol/">adsb.lol</a> (ODbL), elevation Copernicus DEM GLO-90, map &copy; OpenStreetMap
+    contributors. Honest odds: in the public blind tests this method mostly missed, and your microphone is worse
+    than a webcam's. The <a href="<%= results_path %>">results</a> page keeps score.
+  </footer>
+</main>

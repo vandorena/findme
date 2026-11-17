@@ -3,11 +3,15 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  resource :profile, only: %i[ show create ]
+  # The hunt's solver token lives in the cookie session, so these routes carry no id.
+  resource :hunt, only: %i[ show create destroy ] do
+    post :chunk
+    get :status
+    post :truth
+    post :test_flight
+  end
 
-  # Consented self-portrait mode and its placeholder sign-in.
-  resource :self_portrait, only: %i[ show create ]
-  resource :session, only: %i[ create destroy ]
+  resources :results, only: :index
 
-  root "profiles#show"
+  root "hunts#show"
 end

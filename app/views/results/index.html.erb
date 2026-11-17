@@ -1,0 +1,23 @@
+<% content_for(:title, "results · find me by ear") %>
+<main class="hunt">
+  <header>
+    <h1>does the microphone ever win?</h1>
+    <p>Every hunt whose visitor dropped a pin. "Ours" is our final guess; "IP" is where the visitor's network
+      alone pointed. Distances to the pin, medians, rounded to 10 m.</p>
+  </header>
+
+  <% if @total.zero? %>
+    <p class="muted">No results yet. <a href="<%= root_path %>">Be the first.</a></p>
+  <% else %>
+    <% row = ->(label, s) { s ? format("%-26s %6d %10s %10s %9s %9s", label, s[:count], distance(s[:median_m]), distance(s[:ip_median_m]), percent(s[:within_1km], s[:count]), percent(s[:audio_won], s[:count])) : format("%-26s %6d", label, 0) } %>
+    <pre class="table"><%= format("%-26s %6s %10s %10s %9s %9s", "guess rested on", "hunts", "ours", "IP", "<= 1 km", "beat IP") %>
+<%= "-" * 75 %>
+<%= row.("planes (Doppler)", @tiers["doppler"]) %>
+<%= row.("mains hum + IP", @tiers["mains"]) %>
+<%= row.("IP only", @tiers["ip"]) %>
+<%= "-" * 75 %>
+<%= row.("all", @all) %></pre>
+  <% end %>
+
+  <p><a href="<%= root_path %>">&larr; find me</a></p>
+</main>
