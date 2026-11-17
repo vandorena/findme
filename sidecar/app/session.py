@@ -12,6 +12,7 @@ Nothing here is written to disk; the audio lives only in this object."""
 from __future__ import annotations
 
 import base64
+import itertools
 import math
 import threading
 import time
@@ -36,7 +37,10 @@ MIN_AUDIO_S = 15.0
 # a clean pass scores 1.5-3, room noise alone stays under ~0.3.
 HEARD_MIN_SCORE = 0.45
 HEARD_MIN_OVER_REVERSE = 2.0
-HEARD_MIN_Z = 6.0
+HEARD_MIN_Z = 4.0
+MAX_EVENTS = 4
+RIVAL_FRACTION = 0.8  # another aircraft explaining an event this well is a live alternative
+MAX_RIVALS = 6
 CONFIDENT_RUNNER_UP = 0.8  # runner-up peak (>= 1.5 km away) must score below this fraction of the best
 RUNNER_UP_SEPARATION_M = 1500.0
 HEATMAP_MAX = 96
@@ -63,7 +67,7 @@ class Session:
         self.final = False
         self.lattice: np.ndarray | None = None  # (G, 3) coarse points inside the prior, z = ground + mic
         self.state = {"tier": "ip", "status": "waiting for audio", "listened_s": 0.0, "done": False,
-                      "guess": None, "confidence": 0.0, "ambiguous": False, "aircraft": [], "heard": [],
+                      "guess": None, "confidence": 0.0, "ambiguous": False, "aircraft": [], "heard": [], "events": [],
                       "curves": [], "heatmap": None, "mains": None, "mains_expected": mains.expected_hz(country_code),
                       "tracks": [], "adsb": None, "tick_ms": None}
         threading.Thread(target=self._build_lattice, daemon=True).start()
@@ -90,7 +94,7 @@ class Session:
                 "prior": {"lat": self.prior[0], "lon": self.prior[1]}, "confidence": s["confidence"],
                 "ambiguous": s["ambiguous"],
                 "listened_s": s["listened_s"], "cap_s": self.cap_s, "aircraft_scored": len(s["aircraft"]),
-                "passes_detected": len(s["heard"]), "mains_hz": (s["mains"] or {}).get("hz")}
+                "passes_detected": len(s["events"]), "mains_hz": (s["mains"] or {}).get("hz")}
 
     def drop_audio(self) -> None:
         """Listening is over: forget the audio but keep the guess for the visitor's pin."""
@@ -149,22 +153,80 @@ class Session:
                        "age_s": round(time.time() - self.tile.last_ok, 1) if self.tile.last_ok else None}
         if listened < MIN_AUDIO_S or self.lattice is None or len(ft) == 0:
             out["status"] = "listening"
-            out.update(self._decide([], {}, out["mains"], listened))
+            out.update(self._decide([], [], out["mains"], listened))
             return out
 
         tracks = [t for t in build_tracks(self.tile.snapshot(), self.frame, ft[0] - 60, ft[-1] + 5)
                   if self._candidate(t, ft)]
         out["tracks"] = [self._polyline(t, ft) for t in tracks]
-        per_ac, scores = [], {}
+        scores = {}
         for track in tracks:
             res = self._score_aircraft(track, W, ft)
-            if res is None:
-                continue
-            per_ac.append(res["summary"])
-            scores[track.hex] = (track, res)
-        out["aircraft"] = sorted(per_ac, key=lambda a: -a["peak"])[:12]
-        out.update(self._decide(list(scores.values()), out, out["mains"], listened, W=W, ft=ft))
+            if res is not None:
+                scores[track.hex] = (track, res)
+        events = self._find_events(scores, W, ft)
+        out["aircraft"] = sorted((r["summary"] for _, r in scores.values()), key=lambda a: -a["peak"])[:12]
+        out.update(self._decide(list(scores.values()), events, out["mains"], listened, ft=ft))
         return out
+
+    def _find_events(self, scores: dict, W: np.ndarray, ft: np.ndarray) -> list[list[tuple[Track, dict]]]:
+        """Splits what was heard into events (one tone each) and, per event, every aircraft that could
+        have made it. The pitch slide fixes only speed, closest distance and closest-approach time, so any
+        plane at a similar speed has some spot on the ground where it would have sounded the same.
+
+        Greedy: confirm the strongest candidate (ranked by a refined peak, so lattice luck does not pick
+        it), erase its curve and harmonics, and rescore the rest. Whoever collapses was explaining the
+        same tone: a rival hypothesis for this event. Whoever keeps its score may be a later event."""
+        W = W.copy()
+        events: list[list[tuple[Track, dict]]] = []
+        done: set[str] = set()
+        for _ in range(MAX_EVENTS):
+            cands = sorted(((t, r) for t, r in scores.values()
+                            if t.hex not in done and r["peak"] >= HEARD_MIN_SCORE and r["summary"]["z"] >= HEARD_MIN_Z),
+                           key=lambda c: -c[1]["peak"])
+            if not cands:
+                break
+            for t, r in cands:
+                if r["peak"] >= RIVAL_FRACTION * cands[0][1]["peak"] and "fine" not in r:
+                    r["fine"] = self._fine_peak(t, r, W, ft)
+            track, lead = max(cands, key=lambda c: c[1].get("fine", c[1]["peak"]))
+            # The control costs as much as the score, so it runs only for the contender.
+            rev = doppler.score_track(track, self.lattice[lead["idx"]], W, ft, reverse=True)
+            reverse_peak = float(np.nanmax(rev.score)) if np.isfinite(rev.score).any() else 0.0
+            lead["summary"]["reverse"] = round(reverse_peak, 3)
+            done.add(track.hex)
+            if lead["peak"] < HEARD_MIN_OVER_REVERSE * max(reverse_peak, 0.05):
+                continue
+            k = len(events)
+            lead["W"] = W.copy()  # what it was judged on: later steps must not see other events' tones
+            lead["summary"].update(heard=True, event=k, rival=False)
+            event = [(track, lead)]
+            i = int(np.nanargmax(lead["score"]))
+            doppler.erase_curve(W, track, self.lattice[lead["idx"][i]], float(lead["f0"][i]), ft)
+            bar = RIVAL_FRACTION * lead.get("fine", lead["peak"])
+            for hex_code, (t, r) in list(scores.items()):
+                if hex_code in done or r["peak"] < HEARD_MIN_SCORE:
+                    continue
+                again = self._score_aircraft(t, W, ft)
+                collapsed = again is None or again["peak"] < 0.5 * r["peak"]
+                if collapsed and r.get("fine", r["peak"]) >= bar:
+                    r["W"] = lead["W"]
+                    r["summary"].update(heard=True, event=k, rival=True)
+                    event.append((t, r))
+                    done.add(hex_code)
+                elif again is not None:
+                    scores[hex_code] = (t, again)
+            events.append(sorted(event, key=lambda h: -h[1].get("fine", h[1]["peak"]))[:MAX_RIVALS])
+        return events
+
+    def _fine_peak(self, track: Track, res: dict, W: np.ndarray, ft: np.ndarray) -> float:
+        i = int(np.nanargmax(res["score"]))
+        c = self.lattice[res["idx"][i], :2]
+        offs = np.arange(-2 * FINE_M * 2, 2 * FINE_M * 2 + 1, FINE_M)
+        gx, gy = np.meshgrid(c[0] + offs, c[1] + offs)
+        xy = np.column_stack([gx.ravel(), gy.ravel()])
+        s = doppler.score_track(track, np.column_stack([xy, self._ground(xy)]), W, ft).score
+        return float(np.nanmax(s)) if np.isfinite(s).any() else res["peak"]
 
     def _candidate(self, t: Track, ft: np.ndarray) -> bool:
         sel = (t.t >= ft[0] - 40) & (t.t <= ft[-1])
@@ -206,28 +268,21 @@ class Session:
         i = int(np.nanargmax(r.score))
         peak = float(r.score[i])
         z = (peak - med) / mad
-        heard = peak >= HEARD_MIN_SCORE and z >= HEARD_MIN_Z
-        reverse_peak = None
-        if heard:  # the control costs as much as the score, so only run it when it can change the answer
-            rev = doppler.score_track(track, pts, W, ft, reverse=True)
-            reverse_peak = float(np.nanmax(rev.score)) if np.isfinite(rev.score).any() else 0.0
-            heard = peak >= HEARD_MIN_OVER_REVERSE * max(reverse_peak, 0.05)
         lat, lon = self.frame.to_latlon(pts[i, 0], pts[i, 1])
         summary = {"hex": track.hex, "callsign": track.callsign, "type": track.type_code, "kind": track.kind,
                    "peak": round(peak, 3),
-                   "reverse": None if reverse_peak is None else round(reverse_peak, 3), "z": round(z, 1), "heard": heard,
+                   "reverse": None, "z": round(z, 1), "heard": False,
                    "f0": round(float(r.f0[i]), 1), "points": int(good.sum()),
                    "cpa_utc_ms": round(float(r.t_cpa[i]) * 1000)}
         return {"summary": summary, "idx": idx, "score": r.score, "f0": r.f0, "t_cpa": r.t_cpa,
-                "peak": peak, "med": med, "heard": heard, "best": (float(lat), float(lon))}
+                "peak": peak, "med": med, "heard": False, "best": (float(lat), float(lon))}
 
-    def _decide(self, scored: list, out: dict, mains_result: dict | None, listened: float,
-                W: np.ndarray | None = None, ft: np.ndarray | None = None) -> dict:
-        heard = [(t, r) for t, r in scored if r["heard"]]
-        update = {"heard": [r["summary"] for _, r in heard], "curves": [], "heatmap": None,
-                  "ambiguous": False}
+    def _decide(self, scored: list, events: list, mains_result: dict | None, listened: float,
+                ft: np.ndarray | None = None) -> dict:
+        update = {"heard": [r["summary"] for ev in events for _, r in ev], "curves": [], "heatmap": None,
+                  "ambiguous": False, "events": [[self._name(r) for _, r in ev] for ev in events]}
         expected = mains.expected_hz(self.country_code)
-        if not heard:
+        if not events:
             update["guess"] = {"lat": self.prior[0], "lon": self.prior[1], "radius_m": self.radius_m}
             update["tier"] = "mains" if mains_result else "ip"
             update["confidence"] = 0.0
@@ -239,40 +294,67 @@ class Session:
             update["heatmap"] = self._heatmap(scored, heard_only=False)
             return update
 
-        combined = np.zeros(len(self.lattice))
-        for _, r in heard:
-            s = np.nan_to_num(r["score"], nan=0.0)
-            combined[r["idx"]] += np.clip((s - r["med"]) / (r["peak"] - r["med"] + 1e-9), 0, None) ** 2
-        peaks = self._peaks(combined, 2)
-        best_xy, best_val = self._refine(peaks, heard, W, ft)
-        runner = self._runner_up(combined, best_xy)
-        ratio = runner / max(combined.max(), 1e-9)
-        ambiguous = ratio >= CONFIDENT_RUNNER_UP
+        # Every way of explaining the events, one aircraft each. Only the true combination puts all of
+        # its maps on the same spot; with one event, every hypothesis and its mirror stay possible.
+        maps = {id(r): self._map(r) for ev in events for _, r in ev}
+        combos = []
+        for combo in itertools.product(*events):
+            total = sum(maps[id(r)] for _, r in combo)
+            i = int(total.argmax())
+            combos.append((float(total[i]), i, combo, total))
+        combos.sort(key=lambda c: -c[0])
+        best_val, best_i, combo, total = combos[0]
+        best_xy, _ = self._refine(self._peaks(total, 2), list(combo), ft)
+        runner = self._runner_up(total, best_xy)
+        for val, i, _, _ in combos[1:]:
+            if np.hypot(*(self.lattice[i, :2] - best_xy)) >= RUNNER_UP_SEPARATION_M:
+                runner = max(runner, val)
+                break
+        ratio = runner / max(best_val, 1e-9)
+        n = len(events)
+        agree = best_val >= n - 0.6  # every event's map is high at the answer
+        ambiguous = n == 1 or ratio >= CONFIDENT_RUNNER_UP or not agree
         lat, lon = self.frame.to_latlon(best_xy[0], best_xy[1])
         # Error scale: tight along the flight from the clock, looser across it from the curve's steepness.
         radius = 250.0 if not ambiguous else 1500.0
-        confidence = float(np.clip((1 - ratio) * 1.5, 0, 1)) * min(1.0, len(heard) / 2 + 0.5)
+        confidence = 0.0 if n == 1 else float(np.clip((1 - ratio) * 1.5, 0, 1)) * (1.0 if agree else 0.5)
+        shown = total if not ambiguous else np.max([maps[k] for k in maps], axis=0)
         update.update({
             "guess": {"lat": round(float(lat), 6), "lon": round(float(lon), 6), "radius_m": radius},
             "tier": "doppler", "confidence": round(confidence, 2), "ambiguous": bool(ambiguous),
-            "heatmap": self._heatmap(scored, heard_only=True, combined=combined),
+            "heatmap": self._heatmap(scored, heard_only=True, combined=shown),
         })
         point = np.array([best_xy[0], best_xy[1], self._ground(np.array([best_xy]))[0]])
-        for track, r in heard:
+        for track, r in combo:
             j = int(np.nanargmin(np.where(np.isfinite(r["score"]),
                                           np.hypot(*(self.lattice[r["idx"], :2] - best_xy).T), np.inf)))
-            update["curves"].append({"callsign": r["summary"]["callsign"] or r["summary"]["hex"],
-                                     "harmonics": [1, 2, 3],
+            update["curves"].append({"callsign": self._name(r), "harmonics": [1, 2, 3],
                                      "points": doppler.predicted_curve(track, point, float(r["f0"][j]), ft,
                                                                        float(r["t_cpa"][j]))})
-        names = ", ".join(r["summary"]["callsign"] or r["summary"]["hex"] for _, r in heard)
-        if ambiguous:
-            update["status"] = f"heard {names}; one pass leaves two mirror-image spots, waiting for another plane"
+        names = " then ".join(" or ".join(self._name(r) for _, r in ev) for ev in events)
+        if n == 1:
+            spots = 2 * len(events[0])
+            update["status"] = (f"heard one pass ({names}); that leaves {spots} possible spots, "
+                                "waiting for another plane")
+            update["done"] = listened >= self.cap_s
+        elif ambiguous:
+            update["status"] = f"heard {names}; they don't agree on one spot yet"
             update["done"] = listened >= self.cap_s
         else:
-            update["status"] = f"found you from {names}"
+            update["status"] = "found you from " + " and ".join(self._name(r) for _, r in combo)
             update["done"] = True
         return update
+
+    def _map(self, r: dict) -> np.ndarray:
+        """One hypothesis as a 0..1 map over the lattice, sharpened so only near-peak spots count."""
+        m = np.zeros(len(self.lattice))
+        s = np.nan_to_num(r["score"], nan=0.0)
+        m[r["idx"]] = np.clip((s - r["med"]) / (r["peak"] - r["med"] + 1e-9), 0, 1) ** 2
+        return m
+
+    @staticmethod
+    def _name(r: dict) -> str:
+        return r["summary"]["callsign"] or r["summary"]["hex"]
 
     def _peaks(self, combined: np.ndarray, n: int) -> list[np.ndarray]:
         order = np.argsort(-combined)
@@ -291,7 +373,7 @@ class Session:
         far = np.hypot(*(self.lattice[:, :2] - best_xy).T) >= RUNNER_UP_SEPARATION_M
         return float(combined[far].max()) if far.any() else 0.0
 
-    def _refine(self, peaks: list[np.ndarray], heard: list, W, ft) -> tuple[np.ndarray, float]:
+    def _refine(self, peaks: list[np.ndarray], heard: list, ft) -> tuple[np.ndarray, float]:
         best_xy, best_val = peaks[0], -np.inf
         offs = np.arange(-FINE_SPAN_M, FINE_SPAN_M + 1, FINE_M)
         for c in peaks:
@@ -302,7 +384,7 @@ class Session:
             for track, r in heard:
                 best = np.full(len(pts), -np.inf)
                 for L in LATENCIES:  # the visitor's clock is good to ~1 s; scan what is left
-                    s = doppler.score_track(track, pts, W, ft, latency=L).score
+                    s = doppler.score_track(track, pts, r["W"], ft, latency=L).score
                     best = np.fmax(best, np.nan_to_num(s, nan=-np.inf))
                 total += np.clip((best - r["med"]) / (r["peak"] - r["med"] + 1e-9), 0, None) ** 2
             i = int(total.argmax())

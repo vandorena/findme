@@ -159,6 +159,23 @@ def _best(R: np.ndarray):
     return best, f0, np.where(use_single, 1, len(HSHIFT))
 
 
+def erase_curve(W: np.ndarray, track: Track, point: np.ndarray, f0: float, frame_t: np.ndarray,
+                width: int = 3, c: float = C_AIR) -> None:
+    """Zeroes the whitened energy along one aircraft's predicted curve and its harmonics, in place."""
+    t_cpa, d, v = cpa(track, point[None, :], c)
+    hw = float(np.clip(2 * d[0] / max(v[0], 10.0), 4.0, 90.0)) * 1.5
+    frames = np.nonzero(np.abs(frame_t - t_cpa[0]) <= hw)[0]
+    if len(frames) == 0:
+        return
+    rho = predict_ratio(track, point[None, :], frame_t[frames][None, :], c)[0]
+    for h in (*HARMONICS, 4):
+        with np.errstate(invalid="ignore"):
+            k = np.rint(np.log(f0 * h * rho / FK[0]) / DLOG)
+        for frame, kk in zip(frames, k):
+            if np.isfinite(kk):
+                W[frame, max(0, int(kk) - width): max(0, int(kk) + width + 1)] = 0.0
+
+
 def predicted_curve(track: Track, point: np.ndarray, f0: float, frame_t: np.ndarray, t_cpa: float,
                     latency: float = 0.0, c: float = C_AIR, max_points: int = 160) -> list[list[float]]:
     """[UTC ms, Hz] pairs of the fundamental at one point, for drawing over the visitor's spectrogram."""

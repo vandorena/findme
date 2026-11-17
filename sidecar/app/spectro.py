@@ -14,6 +14,7 @@ NPERSEG = 8192  # ~1 Hz resolution, enough to see a 1 % Doppler step at 100 Hz
 HOP = 2000  # 0.25 s
 FMIN, FMAX = 45.0, 1400.0
 DLOG = 0.01  # log-frequency bin: 1 %
+RIDGE_SIDE = 3  # bins either side subtracted by the ridge contrast
 
 
 def log_bins():
@@ -97,4 +98,9 @@ def whiten(lp: np.ndarray) -> np.ndarray:
     w = np.clip((out - med) / mad, -3, 6)
     # +-1 bin tolerance for model error
     w = np.maximum(w, np.maximum(np.roll(w, 1, axis=1), np.roll(w, -1, axis=1)))
+    # Ridge contrast: energy 3 bins to either side counts against a bin. A predicted curve that runs
+    # alongside the real ridge (wrong speed) is penalised instead of rewarded for being close; without
+    # this, a plane 25 % slower fits another's pass about as well as the plane that made it.
+    pad = np.pad(w, ((0, 0), (RIDGE_SIDE, RIDGE_SIDE)), mode="edge")
+    w = w - 0.5 * (pad[:, : -2 * RIDGE_SIDE] + pad[:, 2 * RIDGE_SIDE:])
     return (w - w.mean()).astype(np.float32)

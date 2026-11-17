@@ -78,6 +78,35 @@ def test_two_passes_on_different_lines_find_the_listener():
     assert snap["curves"] and snap["curves"][0]["points"]
 
 
+def test_look_alike_aircraft_make_one_pass_ambiguous():
+    # Seen live: silent aircraft passing at about the same moment and speed can each explain a loud pass
+    # from some spot of their own. The pitch slide cannot say which plane it was, so all stay possible.
+    s = new_session()
+    loud = fly(s, "a1", heading=70, t_cpa=T0 + 60, offset_m=1200, speed=80, alt_m=500)
+    for i, (heading, offset) in enumerate(((150, 2500), (20, -3000), (250, 1800))):
+        fly(s, f"q{i}", heading=heading, t_cpa=T0 + 55 + 4 * i, offset_m=offset)
+    snap = feed(s, synth.render(loud, listener_point(), T0, 140, snr_db=6, rolloff_hz=0, level=0.5))
+
+    assert len(snap["events"]) == 1
+    assert "A1" in snap["events"][0] and len(snap["events"][0]) > 1
+    assert snap["ambiguous"] and not snap["done"] and snap["confidence"] == 0
+    assert " or " in snap["status"]
+
+
+def test_other_traffic_does_not_steal_a_pass():
+    # Silent traffic at other speeds: a helicopter, a fast jet, a slower prop a minute later. (A plane
+    # within ~10 % of the source's speed stays a rival: the pitch slide can't tell them apart.)
+    s = new_session()
+    loud = fly(s, "a1", heading=70, t_cpa=T0 + 60, offset_m=1200, speed=80, alt_m=500)
+    fly(s, "heli", heading=150, t_cpa=T0 + 40, offset_m=2000, speed=45, alt_m=300, kind="heli")
+    fly(s, "jet", heading=20, t_cpa=T0 + 62, offset_m=-3000, speed=140, alt_m=900, kind="jet")
+    fly(s, "late", heading=250, t_cpa=T0 + 120, offset_m=1800, speed=60)
+    snap = feed(s, synth.render(loud, listener_point(), T0, 150, snr_db=0))
+
+    assert snap["events"] == [["A1"]]
+    assert min(error_m(s, snap), abs(error_m(s, snap) - 2400)) < 400
+
+
 def test_aircraft_overhead_but_silent_audio_is_not_heard():
     s = new_session()
     fly(s, "a1", heading=70, t_cpa=T0 + 70, offset_m=1200)
