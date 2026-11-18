@@ -14,7 +14,7 @@ The visitor grants only the microphone. A Python solver (`sidecar/`) matches air
 1. Test with a real mic in Chrome, Safari and Firefox. Check that `track.getSettings()` shows noise suppression actually off. Try it near a window under general-aviation traffic.
 2. Deploy on Coolify with `docker-compose.yml`:
    - set `RAILS_MASTER_KEY` and `SOLVER_KEY`
-   - put `GeoLite2-City.mmdb` in the `geo` volume (without it every hunt is refused)
+   - the IP database (DB-IP City Lite) downloads itself on boot; check the log for `geo: fetched`
 3. Measure solver tick time on the server hardware. On an M-series Mac a tick with 5 aircraft takes about 2.4 s. The budget is under 5 s per chunk.
 4. Possible improvements:
    - ENF (mains-frequency) matching against live grid feeds

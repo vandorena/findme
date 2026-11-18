@@ -48,7 +48,7 @@ hear no usable pass. `/results` keeps score against the IP address.
 | `app/controllers/hunts_controller.rb` | Starts a hunt, relays chunks to the solver, scores the pin |
 | `app/javascript/lib/mic_capture.js` | AudioWorklet capture, resampling to 8 kHz, UTC stamping |
 | `app/javascript/lib/spectrogram.js`, `hunt_map.js` | Live spectrogram with predicted curves; Leaflet map |
-| `app/services/solver_client.rb`, `geo_lookup.rb` | Sidecar client; GeoLite2 IP prior |
+| `app/services/solver_client.rb`, `geo_lookup.rb`, `geo_database.rb` | Sidecar client; DB-IP City Lite IP prior and its monthly download |
 | `sidecar/app/session.py` | One hunt: events, rivals, pair search, early stop |
 | `sidecar/app/doppler.py` | Forward model and sparse curve scoring |
 | `sidecar/app/adsb.py`, `dem.py`, `mains.py`, `spectro.py` | Live tracks, terrain, mains hum, spectrogram |
@@ -63,6 +63,7 @@ SOLVER_DEV=1 SOLVER_KEY=dev DEM_CACHE=./dem-cache .venv/bin/uvicorn app.server:a
 
 # web (another shell). localhost has no IP location, so give it one: lat,lon,radius_km
 bin/setup --skip-server
+bin/rails geo:fetch   # optional: the IP database, ~130 MB
 SOLVER_KEY=dev ME_DEV_PRIOR="41.8268,-71.4025,30" bin/rails server
 ```
 
@@ -76,12 +77,14 @@ Tests: `bin/rails test` and `cd sidecar && .venv/bin/pytest`.
 ## Deploying
 
 `docker-compose.yml` runs both services. On Coolify, create a Docker Compose resource and set
-`RAILS_MASTER_KEY` and `SOLVER_KEY`. Then put `GeoLite2-City.mmdb` (free MaxMind account) in the `geo`
-volume. Without it no visitor can be placed, and every hunt is refused.
+`RAILS_MASTER_KEY` and `SOLVER_KEY`. On boot the web container downloads DB-IP's free City Lite database
+(no account) into its storage volume, and downloads it again on any boot once it is a month old. Until that
+download succeeds, every hunt is refused.
 
 ## Credits
 
 Method: colsto. Solver lineage: colsto-leak-and-mask (MIT) and digitalis-p/doppler-locate (MIT). Flight data:
-adsb.lol (ODbL 1.0), with adsb.fi as a fallback. Terrain: Copernicus DEM GLO-90 (© DLR e.V. 2010-2014 and
+adsb.lol (ODbL 1.0), with adsb.fi as a fallback. IP location:
+[IP Geolocation by DB-IP](https://db-ip.com) (CC BY 4.0). Terrain: Copernicus DEM GLO-90 (© DLR e.V. 2010-2014 and
 © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA). Map:
 © OpenStreetMap contributors. Leaflet (BSD-2-Clause).

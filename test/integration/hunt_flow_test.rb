@@ -19,6 +19,7 @@ class HuntFlowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[data-controller=hunt]"
     assert_select "input[type=range][data-hunt-target=cap]"
+    assert_select "footer a[href=\"https://db-ip.com\"]", "IP Geolocation by DB-IP"
   end
 
   test "starting a hunt hands the solver the IP prior and a clamped cap" do
