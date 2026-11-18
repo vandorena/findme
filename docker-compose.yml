@@ -1,8 +1,8 @@
 # Both halves of the app. On Coolify, create a "Docker Compose" resource from this repo and set:
 #   RAILS_MASTER_KEY  (runtime only, see the note at the top of Dockerfile)
 #   SOLVER_KEY        any long random string; shared by web and solver
-# and put GeoLite2-City.mmdb (MaxMind, free account) in the `geo` volume: without it no visitor can be
-# placed, and every hunt is refused.
+# The web container downloads its IP database (DB-IP City Lite, no account needed) into the storage
+# volume on boot, and again on any boot once it is a month old.
 services:
   web:
     build: .
@@ -10,11 +10,8 @@ services:
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       SOLVER_URL: http://solver:8000
       SOLVER_KEY: ${SOLVER_KEY}
-      GEOIP_CITY_DB: /data/geo/GeoLite2-City.mmdb
-      GEOIP_ASN_DB: /data/geo/GeoLite2-ASN.mmdb
     volumes:
       - storage:/rails/storage
-      - geo:/data/geo:ro
     ports:
       - "3000"
     depends_on:
@@ -35,5 +32,4 @@ services:
 
 volumes:
   storage:
-  geo:
   dem:

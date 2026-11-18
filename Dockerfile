@@ -84,7 +84,7 @@ ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
 # Coolify uses this instead of its own health check settings. /up answers 200
 # over plain HTTP, so force_ssl does not get in the way.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -fsS http://localhost:3000/up || exit 1
 
 # Start Puma directly (no Thruster in the bundle); Coolify's proxy terminates TLS in front of it

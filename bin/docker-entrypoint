@@ -3,6 +3,9 @@
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
+  # The IP prior's database (DB-IP City Lite, on the storage volume), refreshed when over a month old.
+  # Without it every hunt is refused, but that is no reason not to boot.
+  ./bin/rails geo:fetch || echo "geo: download failed; hunts will be refused until it succeeds"
 fi
 
 exec "${@}"
