@@ -33,6 +33,10 @@ export default class extends Controller {
   }
 
   async start() {
+    // Browsers only offer the microphone on HTTPS pages (and localhost); without it nothing else works.
+    if (!window.isSecureContext || !navigator.mediaDevices) {
+      return this.showError("This page isn't served over HTTPS, and browsers only offer the microphone on secure pages. That's our setup, not yours.")
+    }
     this.startTarget.disabled = true
     this.showError(null)
     this.statusTarget.textContent = "asking the solver to watch the sky around you"
@@ -84,11 +88,12 @@ export default class extends Controller {
     this.startTarget.disabled = false
     const reasons = {
       no_geo_db: "This server has no IP location database, so it can't place anyone. That's our fault, not yours.",
-      private_address: "This server sees a private address instead of yours (a proxy setting on our side), so it can't place you."
+      private_address: "This server sees a private address instead of yours (a proxy setting on our side), so it can't place you.",
+      unplaceable: "We can't place your network at all (a VPN or a private address?), so there is nowhere for the planes to narrow down."
     }
     const error = response ? await response.json().then(body => body.error, () => null) : null
     const messages = {
-      422: "We can't place your network at all (a VPN or a private address?), so there is nowhere for the planes to narrow down.",
+      422: "The server turned the request down (an expired page? try reloading).",
       503: "Too many people are being hunted right now. Try again in a minute.",
       502: "The solver is down. Try again later."
     }
