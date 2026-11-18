@@ -118,7 +118,7 @@ class HuntsController < ApplicationController
     end
   end
 
-  # Two very different failures: a server without the GeoLite2 database (every visitor fails), or one
+  # Two very different failures: a server without the IP database (every visitor fails), or one
   # visitor whose address has no location. A private address usually means a proxy in front of Rails is
   # not passing the visitor's address on.
   def unplaceable

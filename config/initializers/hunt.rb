@@ -1,7 +1,7 @@
 # Hunt settings.
 #
 # ME_DEV_PRIOR="lat,lon,radius_km" stands in for IP geolocation when the visitor's address cannot be
-# placed (localhost, no GeoLite2 database). Never used in production.
+# placed (localhost, no IP database). Never used in production.
 #
 # Test flights (a synthetic plane the browser plays through its own speakers) are for checking the
 # whole mic -> solver path with a known answer. Off in production unless ME_TEST_FLIGHTS=1, and the
