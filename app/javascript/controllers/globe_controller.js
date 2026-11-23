@@ -56,7 +56,7 @@ void main() {
 
   float glyph = land ? 1.0 : 0.0;
   float ink = textureLod(uAtlas, vec2((glyph + local.x) / GLYPH_N, 1.0 - local.y), uLod).a;
-  vec3 color = land ? vec3(1.0, 0.69, 0.0) : vec3(0.42);
+  vec3 color = land ? vec3(1.0, 0.69, 0.0) : vec3(0.06, 0.12, 0.5); // amber land, very dark blue sea
   outColor = vec4(color * min(1.0, ink * uGain), 1.0);
 }`
 
