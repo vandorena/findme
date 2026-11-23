@@ -79,13 +79,16 @@ export class GlobePlanes {
       ctx.translate(here.x, here.y)
       ctx.rotate(Math.atan2(ahead.y - here.y, ahead.x - here.x))
       ctx.globalAlpha = alpha
-      ctx.fillStyle = "#ffffff"
-      ctx.beginPath()
-      for (const [u, v] of this.dots) {
-        ctx.moveTo(u + radius, v)
-        ctx.arc(u, v, radius, 0, Math.PI * 2)
+      // A black halo under the white dots, so the plane stands out on the amber land as well as the sea.
+      for (const [color, r] of [["#000000", radius + PITCH * 0.55], ["#ffffff", radius]]) {
+        ctx.fillStyle = color
+        ctx.beginPath()
+        for (const [u, v] of this.dots) {
+          ctx.moveTo(u + r, v)
+          ctx.arc(u, v, r, 0, Math.PI * 2)
+        }
+        ctx.fill()
       }
-      ctx.fill()
       ctx.restore()
     }
     ctx.globalAlpha = 1
