@@ -2,12 +2,15 @@
 <canvas class="sky" data-controller="sky" aria-hidden="true"></canvas>
 <main class="hunt" data-controller="hunt" data-hunt-url-value="<%= hunt_path %>">
   <section class="intro" data-hunt-target="intro">
-    <h1 class="title"><span class="sr-only">findme</span><canvas data-controller="marquee" aria-hidden="true"></canvas></h1>
+    <h1 class="title"><span class="sr-only">findme</span><canvas data-controller="marquee" data-marquee-text-value="findme" aria-hidden="true"></canvas></h1>
+    <p class="subtitle"><span class="sr-only">find your location from the sound of planes passing by</span><canvas data-controller="marquee"
+      data-marquee-text-value="find your location from the sound of planes passing by" data-marquee-font-value="small"
+      data-marquee-pitch-value="2.5" data-marquee-min-pitch-value="2" data-marquee-planes-value="false" aria-hidden="true"></canvas></p>
     <div class="globe" data-controller="globe" aria-hidden="true"><canvas data-globe-target="screen"></canvas><canvas class="planes" data-globe-target="planes"></canvas></div>
     <div class="controls">
-      <input type="range" min="1" max="15" value="3" aria-label="listen for up to"
+      <input type="range" id="cap" min="1" max="15" value="3"
         data-hunt-target="cap" data-action="input->hunt#capChanged">
-      <output data-hunt-target="capLabel">3 min</output>
+      <span class="cap-label"><label for="cap">recording period:</label> <output for="cap" data-hunt-target="capLabel">3 min</output></span>
       <button type="button" data-hunt-target="start" data-action="hunt#start">find me</button>
     </div>
   </section>

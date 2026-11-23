@@ -336,10 +336,22 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
   margin: 0 0 6px;
 }
 
-.title canvas {
+/* The marquee controller sizes these canvases itself, from the text and the room available. */
+.title canvas,
+.subtitle canvas {
   display: block;
-  width: min(calc(100vw - 32px), 240px);
-  aspect-ratio: 37 / 7;
+}
+
+/* "recording period:" and its value sit together on one line, a little closer than the other controls. */
+.cap-label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.hunt .subtitle {
+  margin: 0 0 6px;
 }
 
 .sr-only {
@@ -358,7 +370,7 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
 
 .globe canvas {
   display: block;
-  width: min(calc(100vw - 32px), calc(100dvh - 176px), 900px); /* room for title, controls, footer */
+  width: min(calc(100vw - 32px), calc(100dvh - 200px), 900px); /* room for title, subtitle, controls, footer */
   aspect-ratio: 1;
 }
 
