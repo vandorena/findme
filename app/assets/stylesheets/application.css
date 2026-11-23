@@ -342,8 +342,11 @@ footer {
   text-decoration: none;
 }
 
+/* Fills amber on hover, like the find me button. */
 .repo-link:hover {
-  border-color: var(--ink);
+  border-color: var(--amber);
+  background: var(--amber);
+  color: var(--paper);
 }
 
 .repo-link svg {
