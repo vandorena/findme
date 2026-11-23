@@ -53,6 +53,7 @@
 </main>
 <footer data-controller="footnote" data-action="click@window->footnote#outside keydown.esc@window->footnote#close">
   <%# On the intro this is plain small print. Once a hunt is live it folds into a button that pops it up. %>
+  <a class="repo-link" href="https://github.com/vandorena/findme">repo &nearr;</a>
   <button type="button" class="footnote-toggle" aria-expanded="false" aria-controls="footnote"
     data-footnote-target="toggle" data-action="footnote#toggle">credits &uarr;</button>
   <div class="footnote-body" id="footnote">
