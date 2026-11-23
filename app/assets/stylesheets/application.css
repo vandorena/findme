@@ -254,3 +254,13 @@ footer a {
   inset: 0;
   pointer-events: none;
 }
+
+/* The globe can be grabbed and spun. touch-action keeps a drag on it from scrolling the page on phones. */
+.globe canvas:not(.planes) {
+  cursor: grab;
+  touch-action: none;
+}
+
+.globe canvas.grabbing {
+  cursor: grabbing;
+}

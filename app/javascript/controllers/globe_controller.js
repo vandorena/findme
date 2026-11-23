@@ -16,6 +16,8 @@ const GLYPH_W = 24
 const GLYPH_H = 40
 const DEG_PER_SECOND = 12
 const MASK_PX_PER_DEG = 4
+const MAX_PITCH = 80 * Math.PI / 180  // how far a drag can tip the poles toward you
+const SETTLE_S = 1.2                  // after a fling, how long the globe takes to ease back to its own spin
 
 const VERTEX = `#version 300 es
 in vec2 aPos;
@@ -32,6 +34,7 @@ out vec4 outColor;
 uniform sampler2D uMask;
 uniform sampler2D uAtlas;
 uniform float uSpin;
+uniform float uPitch;
 uniform float uLod;
 uniform float uGain;
 const vec2 GRID = vec2(${COLS}.0, ${ROWS}.0);
@@ -46,11 +49,14 @@ void main() {
   vec2 p = (cell + 0.5) / GRID * 2.0 - 1.0;
   float r2 = dot(p, p);
   if (r2 > 1.0) { outColor = vec4(0.0); return; } // transparent, so the stars show around the globe
-  float z = sqrt(1.0 - r2);
+  float sz = sqrt(1.0 - r2);
 
-  // Undo the axial tilt (a roll about the view axis), then read off latitude and longitude.
-  float gx = p.x * cos(TILT) + p.y * sin(TILT);
-  float gy = -p.x * sin(TILT) + p.y * cos(TILT);
+  // Undo the drag's pitch (about the screen's horizontal axis), then the axial tilt (a roll about the view
+  // axis), then read off latitude and longitude.
+  float py = p.y * cos(uPitch) + sz * sin(uPitch);
+  float z = -p.y * sin(uPitch) + sz * cos(uPitch);
+  float gx = p.x * cos(TILT) + py * sin(TILT);
+  float gy = -p.x * sin(TILT) + py * cos(TILT);
   float lat = asin(clamp(gy, -1.0, 1.0));
   float lon = atan(gx, z) - uSpin;
   vec2 maskUv = vec2(fract(lon / (2.0 * PI) + 0.5), 0.5 - lat / PI);
@@ -87,6 +93,7 @@ export default class extends Controller {
     gl.uniform1i(gl.getUniformLocation(this.program, "uMask"), 0)
     gl.uniform1i(gl.getUniformLocation(this.program, "uAtlas"), 1)
     this.uSpin = gl.getUniformLocation(this.program, "uSpin")
+    this.uPitch = gl.getUniformLocation(this.program, "uPitch")
     this.uLod = gl.getUniformLocation(this.program, "uLod")
     this.uGain = gl.getUniformLocation(this.program, "uGain")
 
@@ -96,11 +103,21 @@ export default class extends Controller {
     this.resize.observe(canvas)
     this.fit()
 
-    this.started = performance.now()
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return this.draw(0)
+    this.still = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    this.auto = this.still ? 0 : DEG_PER_SECOND * Math.PI / 180 // radians per second when nobody is holding it
+    this.spin = 0
+    this.pitch = 0
+    this.spinVel = this.auto
+    this.pitchVel = 0
+    this.listen()
+    if (this.still) return this.draw(0)
+    let last = performance.now()
     const loop = (now) => {
       this.raf = requestAnimationFrame(loop)
+      const dt = Math.min(0.1, (now - last) / 1000) // no lurch after the tab or the globe was hidden
+      last = now
       if (canvas.offsetParent === null) return // hidden once the hunt starts
+      this.coast(dt)
       this.draw(now)
     }
     this.raf = requestAnimationFrame(loop)
@@ -109,6 +126,64 @@ export default class extends Controller {
   disconnect() {
     cancelAnimationFrame(this.raf)
     this.resize?.disconnect()
+    this.abort?.abort()
+  }
+
+  // Grab and spin, like Google Earth without the zoom: the point under the pointer follows it, and a fling
+  // keeps turning and then eases back into the globe's own slow spin.
+  listen() {
+    this.abort = new AbortController()
+    const opts = { signal: this.abort.signal }
+    const el = this.screenTarget
+    el.addEventListener("pointerdown", (e) => {
+      const box = el.getBoundingClientRect()
+      const x = (e.clientX - box.left) / box.width * 2 - 1
+      const y = (e.clientY - box.top) / box.height * 2 - 1
+      if (x * x + y * y > 1) return // only the globe itself is grabbable, not the space around it
+      el.setPointerCapture(e.pointerId)
+      this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, radius: box.width / 2 }
+      this.spinVel = this.pitchVel = 0
+      el.classList.add("grabbing")
+      e.preventDefault()
+    }, opts)
+    el.addEventListener("pointermove", (e) => {
+      const d = this.drag
+      if (!d || e.pointerId !== d.id) return
+      const dSpin = (e.clientX - d.x) / d.radius
+      const dPitch = (e.clientY - d.y) / d.radius
+      const dt = Math.max(1, e.timeStamp - d.t) / 1000
+      this.turn(dSpin, dPitch)
+      // Smoothed so the last jittery event before letting go doesn't decide the fling.
+      this.spinVel = this.spinVel * 0.5 + dSpin / dt * 0.5
+      this.pitchVel = this.pitchVel * 0.5 + dPitch / dt * 0.5
+      Object.assign(d, { x: e.clientX, y: e.clientY, t: e.timeStamp })
+      if (this.still) this.draw(0)
+    }, opts)
+    const release = (e) => {
+      const d = this.drag
+      if (!d || e.pointerId !== d.id) return
+      // Held still before letting go: it stays put rather than flying off with a stale speed.
+      if (e.timeStamp - d.t > 80 || this.still) this.spinVel = this.pitchVel = 0
+      this.drag = null
+      el.classList.remove("grabbing")
+    }
+    el.addEventListener("pointerup", release, opts)
+    el.addEventListener("pointercancel", release, opts)
+  }
+
+  turn(dSpin, dPitch) {
+    const full = 2 * Math.PI
+    this.spin = ((this.spin + dSpin) % full + full) % full // in [0, 2π), so it can turn forever
+    this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch + dPitch))
+  }
+
+  // Between drags: keep turning at the current speed while it relaxes back to the slow spin.
+  coast(dt) {
+    if (this.drag) return
+    this.turn(this.spinVel * dt, this.pitchVel * dt)
+    const ease = Math.exp(-dt / SETTLE_S)
+    this.spinVel = this.auto + (this.spinVel - this.auto) * ease
+    this.pitchVel *= ease
   }
 
   fit() {
@@ -129,11 +204,10 @@ export default class extends Controller {
   }
 
   draw(now) {
-    // Keep the angle in [0, 2π) so it can spin forever without losing float precision.
-    const spin = ((now - (this.started ?? now)) / 1000 * DEG_PER_SECOND * Math.PI / 180) % (2 * Math.PI)
-    this.gl.uniform1f(this.uSpin, spin)
+    this.gl.uniform1f(this.uSpin, this.spin ?? 0)
+    this.gl.uniform1f(this.uPitch, this.pitch ?? 0)
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4)
-    this.planes.draw(now / 1000, spin)
+    this.planes.draw(now / 1000, this.spin ?? 0, this.pitch ?? 0)
   }
 }
 
