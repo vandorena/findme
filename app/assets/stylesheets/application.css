@@ -322,13 +322,33 @@ footer a {
   display: none;
 }
 
-/* On the intro the repo link leads the small print; while a hunt is live it is a twin of the credits button. */
-.repo-link {
-  margin-right: 6px;
+/* The repo link is a small button, the twin of the credits one: beside the small print on the intro,
+   beside the credits button in the corner while a hunt is live. */
+footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.footnote-body {
-  display: inline;
+.repo-link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--dim);
+  background: var(--paper);
+  text-decoration: none;
+}
+
+.repo-link:hover {
+  border-color: var(--ink);
+}
+
+.repo-link svg {
+  width: 1.2em;
+  height: 1.2em;
+  fill: currentColor;
 }
 
 /* While a hunt is live the small print gets out of the way: a button in the corner that pops it up. */
@@ -341,18 +361,6 @@ body:has(.live:not([hidden])) footer {
   align-items: center;
   gap: 6px;
   padding: 0;
-}
-
-body:has(.live:not([hidden])) .repo-link {
-  margin: 0;
-  padding: 4px 10px;
-  border: 1px solid var(--dim);
-  background: var(--paper);
-  text-decoration: none;
-}
-
-body:has(.live:not([hidden])) .repo-link:hover {
-  border-color: var(--ink);
 }
 
 body:has(.live:not([hidden])) .footnote-toggle {
