@@ -2,7 +2,7 @@
 <canvas class="sky" data-controller="sky" aria-hidden="true"></canvas>
 <main class="hunt" data-controller="hunt" data-hunt-url-value="<%= hunt_path %>">
   <section class="intro" data-hunt-target="intro">
-    <div class="globe" data-controller="globe" aria-hidden="true"><canvas data-globe-target="screen"></canvas></div>
+    <div class="globe" data-controller="globe" aria-hidden="true"><canvas data-globe-target="screen"></canvas><canvas class="planes" data-globe-target="planes"></canvas></div>
     <div class="controls">
       <input type="range" min="1" max="15" value="3" aria-label="listen for up to"
         data-hunt-target="cap" data-action="input->hunt#capChanged">

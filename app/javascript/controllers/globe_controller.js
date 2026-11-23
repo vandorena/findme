@@ -1,10 +1,12 @@
 import { Controller } from "@hotwired/stimulus"
+import { GlobePlanes } from "lib/globe_planes"
 
 // A spinning ASCII Earth, 280 x 168 characters. That is far too many glyphs to lay out as text every frame,
 // so a WebGL2 fragment shader does it: for every character cell it casts a ray onto a unit sphere, turns the
 // hit point into latitude and longitude, looks that up in a land mask, picks the land or sea character,
 // and stamps that character from a glyph atlas.
 const COLS = 280
+const TILT = 23.4 * Math.PI / 180
 const ROWS = 168         // cells are 0.6 wide by 1 tall, so 280 x 168 cells make a square canvas
 // Flat: one character for sea, one for land, no shading.
 const SEA = ":"
@@ -34,7 +36,7 @@ uniform float uLod;
 uniform float uGain;
 const vec2 GRID = vec2(${COLS}.0, ${ROWS}.0);
 const float GLYPH_N = ${GLYPHS.length}.0;
-const float TILT = ${(23.4 * Math.PI / 180).toFixed(6)};
+const float TILT = ${TILT.toFixed(6)};
 const float PI = 3.14159265;
 
 void main() {
@@ -61,7 +63,7 @@ void main() {
 }`
 
 export default class extends Controller {
-  static targets = ["screen"]
+  static targets = ["screen", "planes"]
 
   connect() {
     const canvas = this.screenTarget
@@ -87,6 +89,8 @@ export default class extends Controller {
     this.uLod = gl.getUniformLocation(this.program, "uLod")
     this.uGain = gl.getUniformLocation(this.program, "uGain")
 
+    this.planes = new GlobePlanes(this.planesTarget, TILT)
+
     this.resize = new ResizeObserver(() => this.fit())
     this.resize.observe(canvas)
     this.fit()
@@ -108,7 +112,9 @@ export default class extends Controller {
 
   fit() {
     const canvas = this.screenTarget
-    const size = Math.max(1, Math.round(canvas.clientWidth * (window.devicePixelRatio || 1)))
+    const dpr = window.devicePixelRatio || 1
+    const size = Math.max(1, Math.round(canvas.clientWidth * dpr))
+    this.planes.fit(canvas.clientWidth, dpr)
     canvas.width = canvas.height = size
     this.gl.viewport(0, 0, size, size)
     // Pick the atlas mip level whose glyphs are about one screen cell tall, so tiny glyphs average to
@@ -126,6 +132,7 @@ export default class extends Controller {
     const spin = ((now - (this.started ?? now)) / 1000 * DEG_PER_SECOND * Math.PI / 180) % (2 * Math.PI)
     this.gl.uniform1f(this.uSpin, spin)
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4)
+    this.planes.draw(now / 1000, spin)
   }
 }
 

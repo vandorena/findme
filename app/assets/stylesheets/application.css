@@ -228,6 +228,10 @@ footer a {
 }
 
 /* Square: 280 columns x 168 rows of 0.6em-wide cells. Fits both the width and the height of the window. */
+.globe {
+  position: relative;
+}
+
 .globe canvas {
   display: block;
   width: min(calc(100vw - 32px), calc(100vh - 140px), 900px);
@@ -241,5 +245,12 @@ footer a {
   width: 100vw;
   height: 100vh;
   z-index: -1;
+  pointer-events: none;
+}
+
+/* The planes ride on a 2D canvas laid exactly over the globe. */
+.globe .planes {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
 }
