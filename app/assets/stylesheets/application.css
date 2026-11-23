@@ -175,6 +175,18 @@ button:hover:not(:disabled) {
   border-color: var(--ink);
 }
 
+/* The one call to action on the home page is filled amber. */
+.intro button {
+  border-color: var(--amber);
+  background: var(--amber);
+  color: var(--paper);
+}
+
+.intro button:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
 button:disabled {
   color: var(--dim);
   cursor: default;
