@@ -1,3 +1,5 @@
+findMe: a browser-based location finder that matches plane noise to live flight data.
+
 ## Credits
 
 Method: colsto. Solver lineage: colsto-leak-and-mask (MIT) and digitalis-p/doppler-locate (MIT). Flight data:
