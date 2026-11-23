@@ -29,7 +29,7 @@ export class GlobePlanes {
     this.size = cssSize
     this.canvas.width = this.canvas.height = Math.max(1, Math.round(cssSize * dpr))
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    this.length = Math.max(14, cssSize / 24)
+    this.length = Math.max(7, cssSize / 48)
     // The plane's dot screen, in pixels around its centre with the nose along +x: every point of a
     // PITCH grid that falls inside the silhouette.
     this.dots = []
