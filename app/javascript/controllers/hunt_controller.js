@@ -256,11 +256,8 @@ export default class extends Controller {
 
   showMic() {
     const s = this.mic.settings()
-    const flag = (value) => (value === undefined ? "unknown" : value ? "ON" : "off")
     this.micTarget.textContent = [
       s.device,
-      `noise suppression ${flag(s.noiseSuppression)} · echo cancellation ${flag(s.echoCancellation)} · auto gain ${flag(s.autoGainControl)}`,
-      `${s.sampleRate} Hz, resampled to 8000 Hz for the solver`,
       s.noiseSuppression ? "your browser kept noise suppression on, which can erase the faint hum we need" : ""
     ].filter(Boolean).join("\n")
   }
