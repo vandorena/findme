@@ -227,15 +227,9 @@ footer a {
   justify-content: center;
 }
 
-/* 80 columns of ~0.6em each, so the font shrinks to fit narrow screens. */
-.globe pre {
-  font-size: min(12px, calc((100vw - 32px) / 48), calc((100vh - 140px) / 48));
-  line-height: 1;
-  white-space: pre;
-  overflow: hidden;
-  color: #555;
-}
-
-.globe .land {
-  color: var(--amber);
+/* Square: 800 columns x 480 rows of 0.6em-wide cells. Fits both the width and the height of the window. */
+.globe canvas {
+  display: block;
+  width: min(calc(100vw - 32px), calc(100vh - 140px), 900px);
+  aspect-ratio: 1;
 }
