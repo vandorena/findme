@@ -108,14 +108,27 @@ export class Spectrogram {
       }
       const visible = curve.points.find(([utc]) => this.x(utc) >= 0)
       if (visible) {
-        octx.fillStyle = "#ffb000"
-        octx.fillText(curve.callsign, Math.max(4, this.x(visible[0])), this.y(visible[1]) - 6 * ratio)
+        octx.setLineDash([])
+        label(octx, curve.callsign, Math.max(4, this.x(visible[0])), this.y(visible[1]) - 6 * ratio, "#ffc340", ratio)
+        octx.setLineDash([4 * ratio, 4 * ratio])
       }
     }
     octx.setLineDash([])
-    octx.fillStyle = "#8a8a8a"
     for (const f of [50, 100, 200, 500, 1000]) {
-      octx.fillText(`${f} Hz`, 4 * ratio, Math.min(overlay.height - 4, this.y(f) - 2))
+      const y = Math.max(12 * ratio, Math.min(overlay.height - 4, this.y(f) - 2)) // keep 1000 Hz on the canvas
+      label(octx, `${f} Hz`, 4 * ratio, y, "#e6e6e6", ratio)
     }
   }
+}
+
+// Text with a thick black outline, so it reads both on the white curves and on the black background.
+function label(ctx, text, x, y, color, ratio) {
+  ctx.save()
+  ctx.lineJoin = "round"
+  ctx.lineWidth = 3.5 * ratio
+  ctx.strokeStyle = "#000"
+  ctx.strokeText(text, x, y)
+  ctx.fillStyle = color
+  ctx.fillText(text, x, y)
+  ctx.restore()
 }
