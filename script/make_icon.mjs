@@ -1,5 +1,5 @@
 // Builds the favicon from the globe's own continent outlines: an orthographic view with the same axial
-// tilt, sampled onto a coarse dot grid, amber dots for land and dark blue for sea, on black.
+// tilt, sampled onto a coarse dot grid, amber dots for land and dark blue for sea, on a transparent background.
 // usage: node script/make_icon.mjs app/javascript/controllers/globe_controller.js public/icon.svg public/icon.png 17 -20 512
 import fs from "node:fs"
 import zlib from "node:zlib"
@@ -58,10 +58,9 @@ for (let row = 0; row < N; row++) {
   }
 }
 
-const AMBER = "#ffb000", SEA = "#2236a8", BG = "#000"
+const AMBER = "#ffb000", SEA = "#2236a8"
 const RADIUS = 0.44 // of the dot pitch
 const INSET = 0.05  // margin around the disc, of the icon size
-const CORNER = 0.22 // rounded-square corner, of the icon size
 
 // SVG, in a 512 box.
 const B = 512, pitchSvg = B * (1 - 2 * INSET) / N, offSvg = B * INSET
@@ -69,34 +68,31 @@ const dots = cells.map((c) =>
   `<circle cx="${(offSvg + (c.col + 0.5) * pitchSvg).toFixed(1)}" cy="${(offSvg + (c.row + 0.5) * pitchSvg).toFixed(1)}" r="${(pitchSvg * RADIUS).toFixed(1)}" fill="${c.land ? AMBER : SEA}"/>`)
 fs.writeFileSync(outSvg, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${B} ${B}">
   <!-- findme: the globe as a dot matrix, amber land on dark blue sea. Generated from the globe's outlines. -->
-  <rect width="${B}" height="${B}" rx="${B * CORNER}" fill="${BG}"/>
   ${dots.join("\n  ")}
 </svg>
 `)
 
-// PNG, rasterised directly with antialiased dots and corners.
+// PNG, rasterised directly with antialiased dots.
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
 const amber = hex(AMBER), sea = hex(SEA)
 const grid = new Map(cells.map((c) => [c.row * N + c.col, c.land ? amber : sea]))
 const px = Buffer.alloc((SIZE * 4 + 1) * SIZE)
-const pitch = SIZE * (1 - 2 * INSET) / N, off = SIZE * INSET, rad = pitch * RADIUS, corner = SIZE * CORNER
+const pitch = SIZE * (1 - 2 * INSET) / N, off = SIZE * INSET, rad = pitch * RADIUS
 for (let y = 0; y < SIZE; y++) {
   px[y * (SIZE * 4 + 1)] = 0
   for (let x = 0; x < SIZE; x++) {
     const fx = x + 0.5, fy = y + 0.5
-    // rounded square coverage
-    const qx = Math.max(corner - fx, fx - (SIZE - corner), 0), qy = Math.max(corner - fy, fy - (SIZE - corner), 0)
-    const bgA = Math.max(0, Math.min(1, corner - Math.hypot(qx, qy) + 0.5))
-    let rgb = [0, 0, 0]
+    // Transparent everywhere but the dots; their edges fade out through alpha.
+    let rgb = [0, 0, 0], alpha = 0
     const col = Math.floor((fx - off) / pitch), row = Math.floor((fy - off) / pitch)
     const color = col >= 0 && row >= 0 && col < N && row < N ? grid.get(row * N + col) : undefined
     if (color) {
       const d = Math.hypot(fx - (off + (col + 0.5) * pitch), fy - (off + (row + 0.5) * pitch))
-      const a = Math.max(0, Math.min(1, rad - d + 0.5))
-      rgb = color.map((c) => c * a)
+      alpha = Math.max(0, Math.min(1, rad - d + 0.5))
+      rgb = color
     }
     const i = y * (SIZE * 4 + 1) + 1 + x * 4
-    px[i] = Math.round(rgb[0]); px[i + 1] = Math.round(rgb[1]); px[i + 2] = Math.round(rgb[2]); px[i + 3] = Math.round(bgA * 255)
+    px[i] = Math.round(rgb[0]); px[i + 1] = Math.round(rgb[1]); px[i + 2] = Math.round(rgb[2]); px[i + 3] = Math.round(alpha * 255)
   }
 }
 const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0 })

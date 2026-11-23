@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- findme: the globe as a dot matrix, amber land on dark blue sea. Generated from the globe's outlines. -->
-  <rect width="512" height="512" rx="112.64" fill="#000"/>
   <circle cx="201.8" cy="39.2" r="11.9" fill="#2236a8"/>
   <circle cx="228.9" cy="39.2" r="11.9" fill="#ffb000"/>
   <circle cx="256.0" cy="39.2" r="11.9" fill="#ffb000"/>
