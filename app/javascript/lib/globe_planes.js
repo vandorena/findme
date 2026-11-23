@@ -1,4 +1,4 @@
-// Little ASCII planes flying great-circle routes a little above the globe, drawn on a 2D canvas laid over
+// Little planes flying great-circle routes a little above the globe, drawn on a 2D canvas laid over
 // the WebGL one. They use the same spin and tilt as the shader, so they turn with the Earth, and they
 // vanish behind it on the far side.
 const COUNT = 7
@@ -6,9 +6,12 @@ const ALTITUDE = 1.03                 // in globe radii, so they ride just above
 const SPEED = 0.1                     // radians of arc per second
 const ROUTE_ARC = [0.7, 2.0]          // radians between origin and destination
 const CONTRAIL = 0.28                 // radians of arc behind the plane
-const CONTRAIL_DOTS = 14
+const CONTRAIL_STEPS = 16
 const FADE = 0.08                     // fraction of the route spent fading in and out
-const FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+// Top-down airliner silhouette, nose along +x, one unit long. Only the upper half: the path mirrors it.
+const HALF = [[0.5, 0], [0.42, 0.045], [0.12, 0.055], [-0.1, 0.46], [-0.2, 0.46], [-0.08, 0.055], [-0.34, 0.045],
+  [-0.44, 0.19], [-0.51, 0.19], [-0.47, 0]]
+const OUTLINE = [...HALF, ...HALF.slice(1, -1).reverse().map(([x, y]) => [x, -y])]
 
 export class GlobePlanes {
   constructor(canvas, tilt) {
@@ -32,10 +35,9 @@ export class GlobePlanes {
     this.planes = this.planes.map((p) => (t >= p.ends ? route(t, 0) : p))
 
     const ctx = this.ctx
-    const glyph = Math.max(9, Math.round(this.size / 45))
+    const length = Math.max(8, this.size / 32)
     ctx.clearRect(0, 0, this.size, this.size)
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
+    ctx.lineCap = "round"
     const cosS = Math.cos(spin), sinS = Math.sin(spin)
 
     for (const p of this.planes) {
@@ -43,16 +45,21 @@ export class GlobePlanes {
       const alpha = Math.min(1, f / FADE, (1 - f) / FADE)
       if (alpha <= 0) continue
 
-      // Contrail first, so the plane sits on top of it.
-      ctx.font = `${glyph}px ${FONT}`
-      ctx.fillStyle = "#cfd6e6"
-      for (let i = CONTRAIL_DOTS; i >= 1; i--) {
-        const back = f - (CONTRAIL / p.arc) * (i / CONTRAIL_DOTS)
-        if (back < 0) continue
-        const s = this.project(p.at(back), cosS, sinS)
-        if (!s) continue
-        ctx.globalAlpha = alpha * 0.55 * (1 - i / (CONTRAIL_DOTS + 1))
-        ctx.fillText(".", s.x, s.y)
+      // Contrail first, so the plane sits on top of it: short segments fading out behind the plane.
+      ctx.strokeStyle = "#cfd6e6"
+      ctx.lineWidth = Math.max(1, length / 10)
+      let prev = this.project(p.at(f), cosS, sinS)
+      for (let i = 1; i <= CONTRAIL_STEPS; i++) {
+        const back = f - (CONTRAIL / p.arc) * (i / CONTRAIL_STEPS)
+        const next = back >= 0 ? this.project(p.at(back), cosS, sinS) : null
+        if (prev && next) {
+          ctx.globalAlpha = alpha * 0.5 * (1 - i / (CONTRAIL_STEPS + 1))
+          ctx.beginPath()
+          ctx.moveTo(prev.x, prev.y)
+          ctx.lineTo(next.x, next.y)
+          ctx.stroke()
+        }
+        prev = next
       }
 
       const here = this.project(p.at(f), cosS, sinS)
@@ -61,10 +68,13 @@ export class GlobePlanes {
       ctx.save()
       ctx.translate(here.x, here.y)
       ctx.rotate(Math.atan2(ahead.y - here.y, ahead.x - here.x))
+      ctx.scale(length, length)
       ctx.globalAlpha = alpha
       ctx.fillStyle = "#ffffff"
-      ctx.font = `bold ${glyph + 3}px ${FONT}`
-      ctx.fillText("=>", 0, 0)
+      ctx.beginPath()
+      OUTLINE.forEach(([x, y], i) => ctx[i ? "lineTo" : "moveTo"](x, y))
+      ctx.closePath()
+      ctx.fill()
       ctx.restore()
     }
     ctx.globalAlpha = 1
