@@ -2,12 +2,13 @@ import { Controller } from "@hotwired/stimulus"
 
 // A spinning ASCII Earth, 280 x 168 characters. That is far too many glyphs to lay out as text every frame,
 // so a WebGL2 fragment shader does it: for every character cell it casts a ray onto a unit sphere, turns the
-// hit point into latitude and longitude, looks that up in a land mask, picks a character by how lit it is,
+// hit point into latitude and longitude, looks that up in a land mask, picks the land or sea character,
 // and stamps that character from a glyph atlas.
 const COLS = 280
 const ROWS = 168         // cells are 0.6 wide by 1 tall, so 280 x 168 cells make a square canvas
-const SEA = " .,:"
-const LAND = ".:-=+*#%@"
+// Flat: one character for sea, one for land, no shading.
+const SEA = ":"
+const LAND = "@"
 const GLYPHS = SEA + LAND
 const GLYPH_W = 24
 const GLYPH_H = 40
@@ -32,12 +33,9 @@ uniform float uSpin;
 uniform float uLod;
 uniform float uGain;
 const vec2 GRID = vec2(${COLS}.0, ${ROWS}.0);
-const float SEA_N = ${SEA.length}.0;
-const float LAND_N = ${LAND.length}.0;
 const float GLYPH_N = ${GLYPHS.length}.0;
 const float TILT = ${(23.4 * Math.PI / 180).toFixed(6)};
 const float PI = 3.14159265;
-const vec3 LIGHT = normalize(vec3(-0.5, 0.45, 0.75));
 
 void main() {
   vec2 c = vUv * GRID;
@@ -56,8 +54,7 @@ void main() {
   vec2 maskUv = vec2(fract(lon / (2.0 * PI) + 0.5), 0.5 - lat / PI);
   bool land = texture(uMask, maskUv).r > 0.5;
 
-  float light = 0.25 + 0.75 * max(0.0, dot(vec3(p, z), LIGHT));
-  float glyph = land ? SEA_N + min(LAND_N - 1.0, floor(light * LAND_N)) : min(SEA_N - 1.0, floor(light * SEA_N));
+  float glyph = land ? 1.0 : 0.0;
   float ink = textureLod(uAtlas, vec2((glyph + local.x) / GLYPH_N, 1.0 - local.y), uLod).a;
   vec3 color = land ? vec3(1.0, 0.69, 0.0) : vec3(0.42);
   outColor = vec4(color * min(1.0, ink * uGain), 1.0);
@@ -157,8 +154,7 @@ function texture(gl, unit, source, mipmapped) {
   if (mipmapped) gl.generateMipmap(gl.TEXTURE_2D)
 }
 
-// One strip of white glyphs on transparent: the sea ramp then the land ramp, each sorted by how much ink
-// its glyphs put down in this font, so brighter light always means a denser character.
+// One strip of white glyphs on transparent, in GLYPHS order.
 function glyphAtlas() {
   const canvas = document.createElement("canvas")
   canvas.width = GLYPHS.length * GLYPH_W
@@ -168,20 +164,17 @@ function glyphAtlas() {
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.fillStyle = "#fff"
-  const ink = (ch) => {
-    ctx.clearRect(0, 0, GLYPH_W, GLYPH_H)
-    ctx.fillText(ch, GLYPH_W / 2, GLYPH_H / 2)
-    const alpha = ctx.getImageData(0, 0, GLYPH_W, GLYPH_H).data
+  ;[...GLYPHS].forEach((ch, i) => ctx.fillText(ch, i * GLYPH_W + GLYPH_W / 2, GLYPH_H / 2))
+  // How much of its cell the densest glyph inks, so the shader can brighten shrunken glyphs to full colour.
+  const alpha = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+  const ink = [...GLYPHS].map((_, g) => {
     let sum = 0
-    for (let i = 3; i < alpha.length; i += 4) sum += alpha[i]
+    for (let y = 0; y < GLYPH_H; y++) {
+      for (let x = g * GLYPH_W; x < (g + 1) * GLYPH_W; x++) sum += alpha[(y * canvas.width + x) * 4 + 3]
+    }
     return sum / 255 / (GLYPH_W * GLYPH_H)
-  }
-  const coverage = new Map([...GLYPHS].map((ch) => [ch, ink(ch)]))
-  const byInk = (ramp) => [...ramp].sort((a, b) => coverage.get(a) - coverage.get(b))
-  const order = [...byInk(SEA), ...byInk(LAND)]
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  order.forEach((ch, i) => ctx.fillText(ch, i * GLYPH_W + GLYPH_W / 2, GLYPH_H / 2))
-  return { canvas, maxInk: Math.max(...coverage.values()) }
+  })
+  return { canvas, maxInk: Math.max(...ink) }
 }
 
 // Equirectangular land mask, white on black, row 0 at 90°N.
