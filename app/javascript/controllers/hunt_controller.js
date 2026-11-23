@@ -182,6 +182,8 @@ export default class extends Controller {
   reveal() {
     const s = this.snapshot
     this.revealTarget.hidden = false
+    // On a phone the guess can land below the fold; bring it, and the send button, on screen.
+    this.revealTarget.scrollIntoView({ block: "nearest", behavior: "smooth" })
     if (!s?.guess) {
       this.verdictTarget.textContent = "Not enough audio to guess."
       return

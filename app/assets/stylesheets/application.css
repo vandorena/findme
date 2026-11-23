@@ -19,6 +19,14 @@ body {
   overflow: hidden;
 }
 
+/* A live hunt (spectrogram, map, aircraft list, the guess) is taller than a phone, so that view scrolls. */
+html:has(.live:not([hidden])),
+html:has(.live:not([hidden])) body {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
 body {
   display: flex;
   flex-direction: column;
@@ -199,9 +207,34 @@ input:focus-visible {
   gap: 12px;
 }
 
+/* On phones the panels stack, so each is shorter to keep the spectrogram, map and buttons on one screen,
+   and the guess with its pin prompt moves up under the map, where the pin is dropped. */
 @media (max-width: 760px) {
   .panels {
     grid-template-columns: 1fr;
+  }
+
+  .panels .spectrogram canvas {
+    height: 180px;
+  }
+
+  .panels .map {
+    height: 280px;
+  }
+
+  .live {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .live > .reveal {
+    order: 1;
+    margin-top: 12px;
+  }
+
+  .live > .controls,
+  .live > pre {
+    order: 2;
   }
 }
 
