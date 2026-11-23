@@ -118,7 +118,9 @@ export default class extends Controller {
     if (this.still) return
     this.nextFlight ??= t + BOOT_S + 1.5
     if (!this.flight && t >= this.nextFlight) {
-      this.flight = { start: t, row: 2 + Math.floor(Math.random() * (ROWS - 4)) } // wingtips stay on the panel
+      const row = 2 + Math.floor(Math.random() * (ROWS - 4)) // wingtips stay on the panel
+      this.flight = { start: t, row: this.flown ? row : row + 1 } // the first flight comes in a dot lower
+      this.flown = true
     }
     this.plane.clear()
     if (!this.flight) return
