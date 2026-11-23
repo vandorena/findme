@@ -1,12 +1,14 @@
 // Little planes flying great-circle routes a little above the globe, drawn on a 2D canvas laid over
 // the WebGL one. They use the same spin and tilt as the shader, so they turn with the Earth, and they
-// vanish behind it on the far side.
+// vanish behind it on the far side. Each plane is a vector silhouette drawn as a fine dot screen of its
+// own, denser than the globe's characters, that moves and turns with the plane.
 const COUNT = 7
 const ALTITUDE = 1.03                 // in globe radii, so they ride just above the surface
 const SPEED = 0.1                     // radians of arc per second
 const ROUTE_ARC = [0.7, 2.0]          // radians between origin and destination
 const CONTRAIL = 0.28                 // radians of arc behind the plane
-const CONTRAIL_STEPS = 16
+const CONTRAIL_STEPS = 80          // samples along the contrail
+const PITCH = 1.4                  // CSS px between dots; the globe's cells are about 1.9 x 3.1 px
 const FADE = 0.08                     // fraction of the route spent fading in and out
 // Top-down airliner silhouette, nose along +x, one unit long. Only the upper half: the path mirrors it.
 const HALF = [[0.5, 0], [0.42, 0.045], [0.12, 0.055], [-0.1, 0.46], [-0.2, 0.46], [-0.08, 0.055], [-0.34, 0.045],
@@ -27,6 +29,16 @@ export class GlobePlanes {
     this.size = cssSize
     this.canvas.width = this.canvas.height = Math.max(1, Math.round(cssSize * dpr))
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    this.length = Math.max(14, cssSize / 24)
+    // The plane's dot screen, in pixels around its centre with the nose along +x: every point of a
+    // PITCH grid that falls inside the silhouette.
+    this.dots = []
+    const reach = this.length * 0.55
+    for (let v = -reach; v <= reach; v += PITCH) {
+      for (let u = -reach; u <= reach; u += PITCH) {
+        if (inside(OUTLINE, u / this.length, v / this.length)) this.dots.push([u, v])
+      }
+    }
   }
 
   draw(t, spin) {
@@ -35,9 +47,8 @@ export class GlobePlanes {
     this.planes = this.planes.map((p) => (t >= p.ends ? route(t, 0) : p))
 
     const ctx = this.ctx
-    const length = Math.max(8, this.size / 32)
+    const radius = PITCH * 0.36
     ctx.clearRect(0, 0, this.size, this.size)
-    ctx.lineCap = "round"
     const cosS = Math.cos(spin), sinS = Math.sin(spin)
 
     for (const p of this.planes) {
@@ -45,21 +56,20 @@ export class GlobePlanes {
       const alpha = Math.min(1, f / FADE, (1 - f) / FADE)
       if (alpha <= 0) continue
 
-      // Contrail first, so the plane sits on top of it: short segments fading out behind the plane.
-      ctx.strokeStyle = "#cfd6e6"
-      ctx.lineWidth = Math.max(1, length / 10)
-      let prev = this.project(p.at(f), cosS, sinS)
+      // Contrail first, so the plane sits on top of it: fine dots spaced evenly along the path, fading out.
+      ctx.fillStyle = "#cfd6e6"
+      let last = this.project(p.at(f), cosS, sinS)
       for (let i = 1; i <= CONTRAIL_STEPS; i++) {
         const back = f - (CONTRAIL / p.arc) * (i / CONTRAIL_STEPS)
-        const next = back >= 0 ? this.project(p.at(back), cosS, sinS) : null
-        if (prev && next) {
-          ctx.globalAlpha = alpha * 0.5 * (1 - i / (CONTRAIL_STEPS + 1))
-          ctx.beginPath()
-          ctx.moveTo(prev.x, prev.y)
-          ctx.lineTo(next.x, next.y)
-          ctx.stroke()
-        }
-        prev = next
+        if (back < 0) break
+        const s = this.project(p.at(back), cosS, sinS)
+        if (!s) { last = null; continue }
+        if (last && Math.hypot(s.x - last.x, s.y - last.y) < PITCH * 1.6) continue
+        last = s
+        ctx.globalAlpha = alpha * 0.6 * (1 - i / (CONTRAIL_STEPS + 1))
+        ctx.beginPath()
+        ctx.arc(s.x, s.y, radius * 0.8, 0, Math.PI * 2)
+        ctx.fill()
       }
 
       const here = this.project(p.at(f), cosS, sinS)
@@ -68,12 +78,13 @@ export class GlobePlanes {
       ctx.save()
       ctx.translate(here.x, here.y)
       ctx.rotate(Math.atan2(ahead.y - here.y, ahead.x - here.x))
-      ctx.scale(length, length)
       ctx.globalAlpha = alpha
       ctx.fillStyle = "#ffffff"
       ctx.beginPath()
-      OUTLINE.forEach(([x, y], i) => ctx[i ? "lineTo" : "moveTo"](x, y))
-      ctx.closePath()
+      for (const [u, v] of this.dots) {
+        ctx.moveTo(u + radius, v)
+        ctx.arc(u, v, radius, 0, Math.PI * 2)
+      }
       ctx.fill()
       ctx.restore()
     }
@@ -124,4 +135,13 @@ function randomPoint() {
 
 function dot(a, b) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+function inside(ring, x, y) {
+  let hit = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j]
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) hit = !hit
+  }
+  return hit
 }
