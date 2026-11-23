@@ -6,10 +6,8 @@ const COUNT = 7
 const ALTITUDE = 1.03                 // in globe radii, so they ride just above the surface
 const SPEED = 0.1                     // radians of arc per second
 const ROUTE_ARC = [0.7, 2.0]          // radians between origin and destination
-const CONTRAIL = 0.28                 // radians of arc behind the plane
-const CONTRAIL_STEPS = 80          // samples along the contrail
+const TRAIL_STEP = 0.004              // radians of arc between trail samples (about a pixel at full size)
 const PITCH = 1.4                  // CSS px between dots; the globe's cells are about 1.9 x 3.1 px
-const FADE = 0.08                     // fraction of the route spent fading in and out
 // Top-down airliner silhouette, nose along +x, one unit long. Only the upper half: the path mirrors it.
 const HALF = [[0.5, 0], [0.42, 0.045], [0.12, 0.055], [-0.1, 0.46], [-0.2, 0.46], [-0.08, 0.055], [-0.34, 0.045],
   [-0.44, 0.19], [-0.51, 0.19], [-0.47, 0]]
@@ -54,23 +52,30 @@ export class GlobePlanes {
     const cosS = Math.cos(spin), sinS = Math.sin(spin)
 
     for (const p of this.planes) {
+      // Planes appear the moment they take off and vanish the moment they land: no fading.
       const f = (t - p.starts) / (p.ends - p.starts)
-      const alpha = Math.min(1, f / FADE, (1 - f) / FADE)
-      if (alpha <= 0) continue
+      if (f < 0 || f >= 1) continue
 
-      // Contrail first, so the plane sits on top of it: fine dots spaced evenly along the path, fading out.
-      ctx.fillStyle = "#cfd6e6"
-      let last = this.project(p.at(f), cosS, sinS)
-      for (let i = 1; i <= CONTRAIL_STEPS; i++) {
-        const back = f - (CONTRAIL / p.arc) * (i / CONTRAIL_STEPS)
-        if (back < 0) break
-        const s = this.project(p.at(back), cosS, sinS)
+      // The whole way flown so far, from take-off to here, as a dotted line under the plane. It goes when
+      // the plane lands, because the route is replaced.
+      const trail = []
+      let last = null
+      const steps = Math.ceil(f * p.arc / TRAIL_STEP)
+      for (let i = 0; i <= steps; i++) {
+        const s = this.project(p.at(f * i / steps), cosS, sinS)
         if (!s) { last = null; continue }
         if (last && Math.hypot(s.x - last.x, s.y - last.y) < PITCH * 1.6) continue
+        trail.push(s)
         last = s
-        ctx.globalAlpha = alpha * 0.6 * (1 - i / (CONTRAIL_STEPS + 1))
+      }
+      ctx.globalAlpha = 0.75
+      for (const [color, r] of [["#000000", radius * 0.8 + PITCH * 0.45], ["#cfd6e6", radius * 0.8]]) {
+        ctx.fillStyle = color
         ctx.beginPath()
-        ctx.arc(s.x, s.y, radius * 0.8, 0, Math.PI * 2)
+        for (const s of trail) {
+          ctx.moveTo(s.x + r, s.y)
+          ctx.arc(s.x, s.y, r, 0, Math.PI * 2)
+        }
         ctx.fill()
       }
 
@@ -80,7 +85,7 @@ export class GlobePlanes {
       ctx.save()
       ctx.translate(here.x, here.y)
       ctx.rotate(Math.atan2(ahead.y - here.y, ahead.x - here.x))
-      ctx.globalAlpha = alpha
+      ctx.globalAlpha = 1
       // A black halo under the white dots, so the plane stands out on the amber land as well as the sea.
       for (const [color, r] of [["#000000", radius + PITCH * 0.55], ["#ffffff", radius]]) {
         ctx.fillStyle = color
