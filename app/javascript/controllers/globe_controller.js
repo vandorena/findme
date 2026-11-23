@@ -79,7 +79,8 @@ export default class extends Controller {
     gl.enableVertexAttribArray(aPos)
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
 
-    texture(gl, 0, landMask(), false)
+    const mask = landMask()
+    texture(gl, 0, mask, false)
     const atlas = glyphAtlas()
     this.maxInk = atlas.maxInk
     texture(gl, 1, atlas.canvas, true)
@@ -89,7 +90,7 @@ export default class extends Controller {
     this.uLod = gl.getUniformLocation(this.program, "uLod")
     this.uGain = gl.getUniformLocation(this.program, "uGain")
 
-    this.planes = new GlobePlanes(this.planesTarget, TILT)
+    this.planes = new GlobePlanes(this.planesTarget, TILT, landLookup(mask))
 
     this.resize = new ResizeObserver(() => this.fit())
     this.resize.observe(canvas)
@@ -182,6 +183,17 @@ function glyphAtlas() {
     return sum / 255 / (GLYPH_W * GLYPH_H)
   })
   return { canvas, maxInk: Math.max(...ink) }
+}
+
+// The same mask, read back on the CPU so planes can pick airports on land.
+function landLookup(mask) {
+  const k = MASK_PX_PER_DEG
+  const pixels = mask.getContext("2d").getImageData(0, 0, mask.width, mask.height).data
+  return (lat, lon) => {
+    const x = Math.min(mask.width - 1, Math.floor((lon + 180) * k))
+    const y = Math.min(mask.height - 1, Math.floor((90 - lat) * k))
+    return pixels[(y * mask.width + x) * 4] > 127
+  }
 }
 
 // Equirectangular land mask, white on black, row 0 at 90°N.

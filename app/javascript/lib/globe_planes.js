@@ -16,8 +16,10 @@ const HALF = [[0.5, 0], [0.42, 0.045], [0.12, 0.055], [-0.1, 0.46], [-0.2, 0.46]
 const OUTLINE = [...HALF, ...HALF.slice(1, -1).reverse().map(([x, y]) => [x, -y])]
 
 export class GlobePlanes {
-  constructor(canvas, tilt) {
+  // isLand(latDeg, lonDeg) keeps take-offs and landings off the water.
+  constructor(canvas, tilt, isLand) {
     this.canvas = canvas
+    this.isLand = isLand
     this.ctx = canvas.getContext("2d")
     this.cosT = Math.cos(tilt)
     this.sinT = Math.sin(tilt)
@@ -43,8 +45,8 @@ export class GlobePlanes {
 
   draw(t, spin) {
     // Start everyone somewhere mid-flight so the sky isn't empty on load.
-    if (!this.planes.length) this.planes = Array.from({ length: COUNT }, () => route(t, Math.random()))
-    this.planes = this.planes.map((p) => (t >= p.ends ? route(t, 0) : p))
+    if (!this.planes.length) this.planes = Array.from({ length: COUNT }, () => route(t, Math.random(), this.isLand))
+    this.planes = this.planes.map((p) => (t >= p.ends ? route(t, 0, this.isLand) : p))
 
     const ctx = this.ctx
     const radius = PITCH * 0.36
@@ -107,12 +109,12 @@ export class GlobePlanes {
   }
 }
 
-// A great-circle flight between two random points, already `done` of the way along at time t.
-function route(t, done) {
-  const from = randomPoint()
+// A great-circle flight between two random points on land, already `done` of the way along at time t.
+function route(t, done, isLand) {
+  const from = randomPoint(isLand)
   let to, arc
   do {
-    to = randomPoint()
+    to = randomPoint(isLand)
     arc = Math.acos(Math.max(-1, Math.min(1, dot(from, to))))
   } while (arc < ROUTE_ARC[0] || arc > ROUTE_ARC[1])
   const duration = arc / SPEED
@@ -129,10 +131,15 @@ function route(t, done) {
   }
 }
 
-// Keep to where people fly: between 55°S and 70°N.
-function randomPoint() {
-  const lat = (-55 + Math.random() * 125) * Math.PI / 180
-  const lon = (Math.random() * 360 - 180) * Math.PI / 180
+// A spot on land where people fly: between 55°S and 70°N. About a third of that band is land, so this
+// takes a few tries on average.
+function randomPoint(isLand) {
+  let latDeg, lonDeg
+  do {
+    latDeg = -55 + Math.random() * 125
+    lonDeg = Math.random() * 360 - 180
+  } while (!isLand(latDeg, lonDeg))
+  const lat = latDeg * Math.PI / 180, lon = lonDeg * Math.PI / 180
   return [Math.cos(lat) * Math.sin(lon), Math.sin(lat), Math.cos(lat) * Math.cos(lon)]
 }
 
