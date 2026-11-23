@@ -43,7 +43,7 @@ void main() {
   vec2 local = fract(c);
   vec2 p = (cell + 0.5) / GRID * 2.0 - 1.0;
   float r2 = dot(p, p);
-  if (r2 > 1.0) { outColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  if (r2 > 1.0) { outColor = vec4(0.0); return; } // transparent, so the stars show around the globe
   float z = sqrt(1.0 - r2);
 
   // Undo the axial tilt (a roll about the view axis), then read off latitude and longitude.

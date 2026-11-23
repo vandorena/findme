@@ -233,3 +233,13 @@ footer a {
   width: min(calc(100vw - 32px), calc(100vh - 140px), 900px);
   aspect-ratio: 1;
 }
+
+/* The starfield sits behind everything and never takes clicks. */
+.sky {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+}
