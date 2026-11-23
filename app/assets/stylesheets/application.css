@@ -12,7 +12,16 @@
   box-sizing: border-box;
 }
 
+/* The page is exactly one screen tall and never scrolls: the globe and controls fill what the footer leaves. */
+html,
 body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   background: var(--paper);
   color: var(--ink);
@@ -34,6 +43,8 @@ a {
   flex-direction: column;
   gap: 16px;
   width: min(100%, 110ch);
+  flex: 1;
+  min-height: 0;
   margin: 0 auto;
   padding: 16px;
 }
@@ -208,9 +219,13 @@ input:focus-visible {
   padding-top: 12px;
 }
 
+/* Small print at the bottom. It wraps rather than truncating, so the credits (DB-IP's included) stay readable. */
 footer {
+  flex: none;
   color: var(--dim);
-  padding: 24px 16px;
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 4px 12px 6px;
 }
 
 footer a {
@@ -234,7 +249,7 @@ footer a {
 
 .globe canvas {
   display: block;
-  width: min(calc(100vw - 32px), calc(100vh - 140px), 900px);
+  width: min(calc(100vw - 32px), calc(100dvh - 120px), 900px);
   aspect-ratio: 1;
 }
 
