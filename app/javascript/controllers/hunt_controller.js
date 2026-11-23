@@ -89,7 +89,7 @@ export default class extends Controller {
     const reasons = {
       no_geo_db: "Server has no IP location database.",
       private_address: "Server sees a private address, not yours. Can't place you.",
-      unplaceable: "Can't place your network (VPN?)."
+      unplaceable: "Can't place your network (Are you on a VPN?)"
     }
     const error = response ? await response.json().then(body => body.error, () => null) : null
     const messages = {
