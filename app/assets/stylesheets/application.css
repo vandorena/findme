@@ -278,17 +278,24 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
   justify-content: center;
 }
 
-/* The name over the globe: amber like the land, in the same monospace, glowing faintly like the screen. */
+/* The name over the globe, as an LED dot-matrix sign (drawn by the marquee controller). */
 .hunt .title {
-  margin: 0 0 8px;
-  color: var(--amber);
-  text-transform: none;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.3em;
-  padding-left: 0.3em; /* letter-spacing trails the last letter; this keeps the word optically centred */
-  text-shadow: 0 0 12px rgba(255, 176, 0, 0.35);
+  margin: 0 0 6px;
+}
+
+.title canvas {
+  display: block;
+  width: min(calc(100vw - 32px), 300px);
+  aspect-ratio: 37 / 9;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Square: 280 columns x 168 rows of 0.6em-wide cells. Fits both the width and the height of the window. */
@@ -298,7 +305,7 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
 
 .globe canvas {
   display: block;
-  width: min(calc(100vw - 32px), calc(100dvh - 162px), 900px); /* room for title, controls, footer */
+  width: min(calc(100vw - 32px), calc(100dvh - 202px), 900px); /* room for title, controls, footer */
   aspect-ratio: 1;
 }
 
