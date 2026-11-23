@@ -227,7 +227,7 @@ footer a {
   justify-content: center;
 }
 
-/* Square: 400 columns x 240 rows of 0.6em-wide cells. Fits both the width and the height of the window. */
+/* Square: 280 columns x 168 rows of 0.6em-wide cells. Fits both the width and the height of the window. */
 .globe canvas {
   display: block;
   width: min(calc(100vw - 32px), calc(100vh - 140px), 900px);
