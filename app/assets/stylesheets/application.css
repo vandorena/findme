@@ -322,8 +322,8 @@ footer a {
   display: none;
 }
 
-/* The repo link is a small button, the twin of the credits one: beside the small print on the intro,
-   beside the credits button in the corner while a hunt is live. */
+/* The repo link is a small button, the twin of the credits one: after the small print on the intro,
+   left of the credits button in the corner while a hunt is live. */
 footer {
   display: flex;
   align-items: center;
@@ -331,6 +331,7 @@ footer {
 }
 
 .repo-link {
+  order: 1;
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -361,6 +362,10 @@ body:has(.live:not([hidden])) footer {
   align-items: center;
   gap: 6px;
   padding: 0;
+}
+
+body:has(.live:not([hidden])) .repo-link {
+  order: 0;
 }
 
 body:has(.live:not([hidden])) .footnote-toggle {
