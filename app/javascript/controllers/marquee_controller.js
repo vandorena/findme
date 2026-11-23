@@ -101,21 +101,25 @@ export default class extends Controller {
     return [...text].reduce((w, ch) => w + (ch === " " ? SPACE : this.font.glyphs[ch][0].length) + 1, -1)
   }
 
-  // Splits the text into as few lines as keep the dots at least minPitch apart in the space available.
+  // Wraps at spaces onto as few lines as keep the dots at least minPitch apart in the space available,
+  // then evens the lines out so the last one isn't a lone word.
   layout(room) {
     const words = this.textValue.split(" ")
-    for (let n = 1; n <= words.length; n++) {
+    const wrap = (limit) => {
       const lines = []
-      const per = Math.ceil(this.width(this.textValue) / n)
       let line = ""
       for (const word of words) {
         const next = line ? `${line} ${word}` : word
-        if (line && this.width(next) > per) { lines.push(line); line = word } else line = next
+        if (line && this.width(next) > limit) { lines.push(line); line = word } else line = next
       }
-      lines.push(line)
-      const cols = PAD * 2 + Math.max(...lines.map((l) => this.width(l)))
-      if (room / cols >= this.minPitchValue || n === words.length) return lines
+      return [...lines, line]
     }
+    const most = this.minPitchValue > 0 ? Math.floor(room / this.minPitchValue) - PAD * 2 : Infinity
+    const fewest = wrap(most).length
+    if (fewest === 1) return [this.textValue]
+    let limit = Math.max(...words.map((w) => this.width(w)))
+    while (wrap(limit).length > fewest) limit++
+    return wrap(limit)
   }
 
   fit() {

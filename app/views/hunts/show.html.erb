@@ -1,12 +1,12 @@
 <% content_for(:title, "find me by ear") %>
 <canvas class="sky" data-controller="sky" aria-hidden="true"></canvas>
 <main class="hunt" data-controller="hunt" data-hunt-url-value="<%= hunt_path %>">
-  <section class="intro" data-hunt-target="intro">
+  <section class="intro" data-hunt-target="intro" data-controller="fit">
     <h1 class="title"><span class="sr-only">findme</span><canvas data-controller="marquee" data-marquee-text-value="findme" aria-hidden="true"></canvas></h1>
     <p class="subtitle"><span class="sr-only">find your location from the sound of planes passing by</span><canvas data-controller="marquee"
       data-marquee-text-value="find your location from the sound of planes passing by" data-marquee-font-value="small"
       data-marquee-pitch-value="2.5" data-marquee-min-pitch-value="2" data-marquee-planes-value="false" aria-hidden="true"></canvas></p>
-    <div class="globe" data-controller="globe" aria-hidden="true"><canvas data-globe-target="screen"></canvas><canvas class="planes" data-globe-target="planes"></canvas></div>
+    <div class="globe" data-controller="globe" data-fit-target="globe" aria-hidden="true"><canvas data-globe-target="screen"></canvas><canvas class="planes" data-globe-target="planes"></canvas></div>
     <div class="controls">
       <input type="range" id="cap" min="1" max="15" value="3"
         data-hunt-target="cap" data-action="input->hunt#capChanged">

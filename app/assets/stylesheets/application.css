@@ -321,10 +321,13 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
   display: block;
 }
 
+/* When the globe is held back by the screen's width (phones), the spare height is split above and below,
+   so the sign, globe and controls sit together in the middle instead of leaving a hole over the footer. */
 .intro {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-block: auto;
 }
 
 .intro .controls {
@@ -370,7 +373,7 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
 
 .globe canvas {
   display: block;
-  width: min(calc(100vw - 32px), calc(100dvh - 200px), 900px); /* room for title, subtitle, controls, footer */
+  width: min(calc(100vw - 32px), var(--globe-max, calc(100dvh - 200px)), 900px); /* --globe-max: what the fit controller measured */
   aspect-ratio: 1;
 }
 
