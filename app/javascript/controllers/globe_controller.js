@@ -62,8 +62,19 @@ void main() {
   vec2 maskUv = vec2(fract(lon / (2.0 * PI) + 0.5), 0.5 - lat / PI);
   bool land = texture(uMask, maskUv).r > 0.5;
 
+  // A cell is a fractional number of pixels wide, so one sample per pixel lands on the glyph's strokes in
+  // some pixel columns and between them in others, which shows as vertical bands. Average a 4 x 4 grid of
+  // samples across the pixel instead.
   float glyph = land ? 1.0 : 0.0;
-  float ink = textureLod(uAtlas, vec2((glyph + local.x) / GLYPH_N, 1.0 - local.y), uLod).a;
+  vec2 footprint = fwidth(c);
+  float ink = 0.0;
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      vec2 q = fract(local + (vec2(i, j) + 0.5) / 4.0 * footprint - 0.5 * footprint);
+      ink += textureLod(uAtlas, vec2((glyph + q.x) / GLYPH_N, 1.0 - q.y), uLod).a;
+    }
+  }
+  ink /= 16.0;
   vec3 color = land ? vec3(1.0, 0.69, 0.0) : vec3(0.06, 0.12, 0.5); // amber land, very dark blue sea
   outColor = vec4(color * min(1.0, ink * uGain), 1.0);
 }`
