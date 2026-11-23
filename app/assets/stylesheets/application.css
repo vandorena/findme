@@ -112,8 +112,54 @@ pre.table {
   align-items: center;
 }
 
+/* A flat square track and a square amber thumb, to match the square buttons. */
 input[type="range"] {
-  accent-color: var(--amber);
+  appearance: none;
+  -webkit-appearance: none;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 0;
+  background: var(--line);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 0;
+  background: var(--line);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 4px;
+  background: var(--amber);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 16px;
+  margin-top: -6px; /* centre on the 4px track */
+  border: 0;
+  border-radius: 0;
+  background: var(--amber);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 16px;
+  border: 0;
+  border-radius: 0;
+  background: var(--amber);
+}
+
+input[type="range"]:focus-visible {
+  outline: 1px solid var(--amber);
+  outline-offset: 4px;
 }
 
 button {
