@@ -1,11 +1,11 @@
 import { Controller } from "@hotwired/stimulus"
 
-// A spinning ASCII Earth, 800 x 480 characters. That is far too many glyphs to lay out as text every frame,
+// A spinning ASCII Earth, 400 x 240 characters. That is far too many glyphs to lay out as text every frame,
 // so a WebGL2 fragment shader does it: for every character cell it casts a ray onto a unit sphere, turns the
 // hit point into latitude and longitude, looks that up in a land mask, picks a character by how lit it is,
 // and stamps that character from a glyph atlas.
-const COLS = 800
-const ROWS = 480         // cells are 0.6 wide by 1 tall, so 800 x 480 cells make a square canvas
+const COLS = 400
+const ROWS = 240         // cells are 0.6 wide by 1 tall, so 400 x 240 cells make a square canvas
 const SEA = " .,:"
 const LAND = ".:-=+*#%@"
 const GLYPHS = SEA + LAND
