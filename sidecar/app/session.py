@@ -66,7 +66,7 @@ class Session:
         self.closed = False
         self.final = False
         self.lattice: np.ndarray | None = None  # (G, 3) coarse points inside the prior, z = ground + mic
-        self.state = {"tier": "ip", "status": "waiting for audio", "listened_s": 0.0, "done": False,
+        self.state = {"tier": "ip", "status": "Waiting for audio.", "listened_s": 0.0, "done": False,
                       "guess": None, "confidence": 0.0, "ambiguous": False, "aircraft": [], "heard": [], "events": [],
                       "curves": [], "heatmap": None, "mains": None, "mains_expected": mains.expected_hz(country_code),
                       "tracks": [], "adsb": None, "tick_ms": None}
@@ -152,7 +152,7 @@ class Session:
         out["adsb"] = {"source": self.tile.source, "error": self.tile.error,
                        "age_s": round(time.time() - self.tile.last_ok, 1) if self.tile.last_ok else None}
         if listened < MIN_AUDIO_S or self.lattice is None or len(ft) == 0:
-            out["status"] = "listening"
+            out["status"] = "Listening."
             out.update(self._decide([], [], out["mains"], listened))
             return out
 
@@ -289,8 +289,8 @@ class Session:
             update["confidence"] = 0.0
             hint = ""
             if mains_result and expected and mains_result["hz"] != expected:
-                hint = f" · your walls hum at {mains_result['hz']} Hz, which your IP's country does not"
-            update["status"] = (f"no aircraft heard yet; {len(scored)} scored" if scored else "listening") + hint
+                hint = f" Mains hum: {mains_result['hz']} Hz, not your IP country's grid."
+            update["status"] = ("No planes heard yet." if scored else "Listening.") + hint
             update["done"] = listened >= self.cap_s
             update["heatmap"] = self._heatmap(scored, heard_only=False)
             return update
@@ -334,17 +334,16 @@ class Session:
             update["curves"].append({"callsign": self._name(r), "harmonics": stack,
                                      "points": doppler.predicted_curve(track, point, float(r["f0"][j]), ft,
                                                                        float(r["t_cpa"][j]))})
-        names = " then ".join(" or ".join(self._name(r) for _, r in ev) for ev in events)
+        names = ", then ".join(" or ".join(self._name(r) for _, r in ev) for ev in events)
         if n == 1:
             spots = 2 * len(events[0])
-            update["status"] = (f"heard one pass ({names}); that leaves {spots} possible spots, "
-                                "waiting for another plane")
+            update["status"] = f"Heard: {names}. {spots} possible spots; need one more plane."
             update["done"] = listened >= self.cap_s
         elif ambiguous:
-            update["status"] = f"heard {names}; they don't agree on one spot yet"
+            update["status"] = f"Heard: {names}. No single spot yet."
             update["done"] = listened >= self.cap_s
         else:
-            update["status"] = "found you from " + " and ".join(self._name(r) for _, r in combo)
+            update["status"] = "Found you. Heard: " + ", ".join(self._name(r) for _, r in combo) + "."
             update["done"] = True
         return update
 

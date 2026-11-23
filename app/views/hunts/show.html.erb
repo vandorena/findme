@@ -30,18 +30,18 @@
     <pre class="muted small" data-hunt-target="mic"></pre>
 
     <section class="reveal" data-hunt-target="reveal" hidden>
-      <h2>our guess</h2>
+      <h2>guess</h2>
       <p data-hunt-target="verdict"></p>
       <div data-hunt-target="pinPrompt">
-        <p>Where are you really? Click the map, then send it. We'll store only the two distances.</p>
+        <p>Click your real location, then send. Only the two distances are stored.</p>
         <div class="controls">
-          <button type="button" data-hunt-target="submitPin" data-action="hunt#submitPin" disabled>that's me</button>
-          <button type="button" data-action="hunt#skip">I'd rather not say</button>
+          <button type="button" data-hunt-target="submitPin" data-action="hunt#submitPin" disabled>send</button>
+          <button type="button" data-action="hunt#skip">skip</button>
         </div>
       </div>
       <div data-hunt-target="score" hidden>
         <pre></pre>
-        <p><a href="<%= root_path %>">try again</a> · <a href="<%= results_path %>">everyone's results</a></p>
+        <p><a href="<%= root_path %>">again</a> · <a href="<%= results_path %>">all results</a></p>
       </div>
     </section>
   </section>
@@ -55,7 +55,6 @@
   Method by <a href="https://www.youtube.com/watch?v=UytYrhYLOKI">colsto</a>; solver after
   <a href="https://github.com/Bodila51/colsto-leak-and-mask">colsto-leak-and-mask</a>. Flight data
   <a href="https://www.adsb.lol/">adsb.lol</a> (ODbL), elevation Copernicus DEM GLO-90, map &copy; OpenStreetMap
-  contributors, <a href="https://db-ip.com">IP Geolocation by DB-IP</a>. Honest odds: in the public blind tests this method mostly missed, and your microphone is worse
-  than a webcam's. The <a href="<%= results_path %>">results</a> page keeps score.
+  contributors, <a href="https://db-ip.com">IP Geolocation by DB-IP</a>. Odds: this method mostly missed in public blind tests. <a href="<%= results_path %>">Results</a>.
   </div>
 </footer>
