@@ -274,7 +274,8 @@ class Session:
                    "reverse": None, "z": round(z, 1), "heard": False,
                    "f0": round(float(r.f0[i]), 1), "points": int(good.sum()),
                    "cpa_utc_ms": round(float(r.t_cpa[i]) * 1000)}
-        return {"summary": summary, "idx": idx, "score": r.score, "f0": r.f0, "t_cpa": r.t_cpa,
+        return {"summary": summary, "idx": idx, "score": r.score, "f0": r.f0, "harmonics": r.harmonics,
+                "t_cpa": r.t_cpa,
                 "peak": peak, "med": med, "heard": False, "best": (float(lat), float(lon))}
 
     def _decide(self, scored: list, events: list, mains_result: dict | None, listened: float,
@@ -328,7 +329,9 @@ class Session:
         for track, r in combo:
             j = int(np.nanargmin(np.where(np.isfinite(r["score"]),
                                           np.hypot(*(self.lattice[r["idx"], :2] - best_xy).T), np.inf)))
-            update["curves"].append({"callsign": self._name(r), "harmonics": [1, 2, 3],
+            # Draw the harmonics that were matched: the whole stack, or just the one tone when that won alone.
+            stack = [1, 2, 3] if int(r["harmonics"][j]) > 1 else [1]
+            update["curves"].append({"callsign": self._name(r), "harmonics": stack,
                                      "points": doppler.predicted_curve(track, point, float(r["f0"][j]), ft,
                                                                        float(r["t_cpa"][j]))})
         names = " then ".join(" or ".join(self._name(r) for _, r in ev) for ev in events)

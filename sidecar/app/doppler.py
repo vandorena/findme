@@ -155,8 +155,30 @@ def _best(R: np.ndarray):
     v_single = single[np.arange(len(R)), i_single]
     use_single = v_single > v_stack
     best = np.where(use_single, v_single, v_stack)
-    f0 = np.where(use_single, FK[i_single], FK[K0[i_stack]])
-    return best, f0, np.where(use_single, 1, len(HSHIFT))
+    # A lone winning tone may really be the 2nd or 3rd harmonic of a fundamental too faint to win by itself
+    # (laptop speakers and phone mics lose the low end first). Read it as harmonic h of f/h when the other
+    # harmonics of f/h hold clearly more energy than those of f itself. This only changes the reported f0,
+    # so the curves drawn and erased land on the lines actually heard; the score is untouched.
+    rows = np.arange(len(R))
+    tone = R[rows, i_single]
+
+    def others(base, skip):
+        total = np.zeros(len(R), np.float32)
+        for m, s in enumerate(HSHIFT):
+            if m == skip:
+                continue
+            k = base + s
+            ok = (k >= 0) & (k < K)
+            total += np.where(ok, R[rows, np.clip(k, 0, K - 1)], 0.0)
+        return total
+
+    sub = [others(i_single - s, h) for h, s in enumerate(HSHIFT)]
+    h_best = np.argmax(np.stack(sub[1:]), 0) + 1
+    gain = np.take_along_axis(np.stack(sub), h_best[None], 0)[0]
+    lift = use_single & (i_single - np.take(HSHIFT, h_best) >= 0) & (gain > np.maximum(sub[0], 0) + 0.15 * tone)
+    i_tone = np.where(lift, i_single - np.take(HSHIFT, h_best), i_single)
+    f0 = np.where(use_single, FK[i_tone], FK[K0[i_stack]])
+    return best, f0, np.where(use_single & ~lift, 1, len(HSHIFT))
 
 
 def erase_curve(W: np.ndarray, track: Track, point: np.ndarray, f0: float, frame_t: np.ndarray,

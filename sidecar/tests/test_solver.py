@@ -63,6 +63,20 @@ def test_one_pass_is_heard_but_leaves_a_mirror():
     assert min(error_m(s, snap), abs(error_m(s, snap) - 2400)) < 400
 
 
+def test_a_lost_fundamental_is_still_drawn_on_the_lines_heard():
+    # Speakers and phone mics drop the low end, so the 110 Hz fundamental can vanish and leave 220 and 330.
+    # The drawn curve must still be the 110 Hz stack, not 220 Hz with 440 and 660 over empty spectrum.
+    s = new_session()
+    track = fly(s, "a1", heading=30, t_cpa=T0 + 60, offset_m=800)
+    audio = synth.render(track, listener_point(), T0, 140, f0=110, harmonic_amps=(0.0, 1.0, 0.5), snr_db=6,
+                         rolloff_hz=0, noise_seed=1)
+    snap = feed(s, audio)
+
+    [curve] = snap["curves"]
+    assert curve["harmonics"] == [1, 2, 3]
+    assert 95 < np.median([hz for _, hz in curve["points"]]) < 130
+
+
 def test_two_passes_on_different_lines_find_the_listener():
     s = new_session()
     a = fly(s, "a1", heading=70, t_cpa=T0 + 60, offset_m=1200)
