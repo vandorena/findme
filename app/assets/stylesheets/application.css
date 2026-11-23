@@ -232,6 +232,42 @@ footer a {
   color: var(--dim);
 }
 
+.footnote-toggle {
+  display: none;
+}
+
+/* While a hunt is live the small print gets out of the way: a button in the corner that pops it up. */
+body:has(.live:not([hidden])) footer {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 10;
+  padding: 0;
+}
+
+body:has(.live:not([hidden])) .footnote-toggle {
+  display: block;
+  margin-left: auto;
+  padding: 4px 10px;
+  background: var(--paper);
+  color: var(--dim);
+}
+
+body:has(.live:not([hidden])) .footnote-body {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  width: min(440px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+body:has(.live:not([hidden])) footer.open .footnote-body {
+  display: block;
+}
+
 .intro {
   display: flex;
   flex-direction: column;
