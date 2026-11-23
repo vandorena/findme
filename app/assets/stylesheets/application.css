@@ -285,8 +285,8 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
 
 .title canvas {
   display: block;
-  width: min(calc(100vw - 32px), 300px);
-  aspect-ratio: 37 / 9;
+  width: min(calc(100vw - 32px), 240px);
+  aspect-ratio: 37 / 7;
 }
 
 .sr-only {
@@ -305,7 +305,7 @@ body:has(.live:not([hidden])) footer.open .footnote-body {
 
 .globe canvas {
   display: block;
-  width: min(calc(100vw - 32px), calc(100dvh - 202px), 900px); /* room for title, controls, footer */
+  width: min(calc(100vw - 32px), calc(100dvh - 176px), 900px); /* room for title, controls, footer */
   aspect-ratio: 1;
 }
 

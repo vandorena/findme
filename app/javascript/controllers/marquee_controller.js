@@ -12,9 +12,9 @@ const GLYPHS = {
   e: [".....", ".....", ".###.", "#...#", "#####", "#....", ".###."]
 }
 const WORD = "findme"
-const PAD = 1                       // unlit dots around the lettering
+const PAD = 1                       // unlit dots either side of the lettering; none above or below, to keep it slim
 const COLS = PAD * 2 + WORD.length * 6 - 1
-const ROWS = PAD * 2 + 7
+const ROWS = 7
 // The plane seen from above, nose at [0, 0] and flying right: fuselage, swept-back wings, tailplane.
 //   ..#....
 //   #..#...
@@ -40,7 +40,7 @@ export default class extends Controller {
     let x = PAD
     for (const ch of WORD) {
       GLYPHS[ch].forEach((row, r) => [...row].forEach((c, k) => {
-        if (c === "#") this.bootAt[(PAD + r) * COLS + x + k] = Math.random() * BOOT_S
+        if (c === "#") this.bootAt[r * COLS + x + k] = Math.random() * BOOT_S
       }))
       x += 6
     }
