@@ -1,7 +1,8 @@
 // Little planes flying great-circle routes a little above the globe, drawn on a 2D canvas laid over
 // the WebGL one. They use the same spin and tilt as the shader, so they turn with the Earth, and they
 // vanish behind it on the far side. Each plane is a vector silhouette drawn as a fine dot screen of its
-// own, denser than the globe's characters, that moves and turns with the plane.
+// own, denser than the globe's characters, lying flat in the tangent plane under it, so it moves and
+// turns with the plane and foreshortens with the surface towards the limb.
 const COUNT = 7
 const ALTITUDE = 1.03                 // in globe radii, so they ride just above the surface
 const SPEED = 0.1                     // radians of arc per second
@@ -80,41 +81,59 @@ export class GlobePlanes {
         ctx.fill()
       }
 
-      const here = this.project(p.at(f))
+      const at = p.at(f)
+      const here = this.project(at)
       if (!here) continue
-      const ahead = this.project(p.at(Math.min(1, f + 0.01))) || here
-      ctx.save()
-      ctx.translate(here.x, here.y)
-      ctx.rotate(Math.atan2(ahead.y - here.y, ahead.x - here.x))
+      // The silhouette lies in the tangent plane under the plane, spanned by its heading and its wings, so
+      // the wings stay parallel to the surface: face-on in the middle of the disc, foreshortened towards
+      // the limb. Orthographic projection makes that a linear map from silhouette pixels to screen pixels.
+      const next = p.at(Math.min(1, f + 0.001))
+      const along = dot(next, at)
+      const heading = unit([next[0] - at[0] * along, next[1] - at[1] * along, next[2] - at[2] * along])
+      if (!heading) continue
+      const wings = cross(at, heading)
+      const nose = this.screenVector(heading), span = this.screenVector(wings)
       ctx.globalAlpha = 1
       // A black halo under the white dots, so the plane stands out on the amber land as well as the sea.
+      // The dots move with the foreshortening but stay round, like the globe's own.
       for (const [color, r] of [["#000000", radius + PITCH * 0.55], ["#ffffff", radius]]) {
         ctx.fillStyle = color
         ctx.beginPath()
         for (const [u, v] of this.dots) {
-          ctx.moveTo(u + r, v)
-          ctx.arc(u, v, r, 0, Math.PI * 2)
+          const x = here.x + u * nose.x + v * span.x, y = here.y + u * nose.y + v * span.y
+          ctx.moveTo(x + r, y)
+          ctx.arc(x, y, r, 0, Math.PI * 2)
         }
         ctx.fill()
       }
-      ctx.restore()
     }
     ctx.globalAlpha = 1
   }
 
   // Earth-fixed unit vector -> CSS pixel on the overlay, or null when the globe hides it. This is the
   // forward version of the shader's ray-to-latitude/longitude maths.
-  project([ex, ey, ez]) {
-    const { cosS, sinS, cosP, sinP } = this.view
-    const gx = (ex * cosS + ez * sinS) * ALTITUDE
-    const gy = ey * ALTITUDE
-    const gz = (-ex * sinS + ez * cosS) * ALTITUDE
-    const x = this.cosT * gx - this.sinT * gy
-    const ty = this.sinT * gx + this.cosT * gy
-    const y = ty * cosP - gz * sinP
-    const z = ty * sinP + gz * cosP
+  project(e) {
+    const [x, y, z] = this.view3(e.map((c) => c * ALTITUDE))
     if (z <= 0 && x * x + y * y <= 1) return null
     return { x: (x + 1) / 2 * this.size, y: (1 - y) / 2 * this.size }
+  }
+
+  // A unit Earth-fixed direction -> the screen offset, in CSS px, of one silhouette pixel along it: a whole
+  // pixel where it faces the viewer, less as it turns away.
+  screenVector(e) {
+    const [x, y] = this.view3(e)
+    return { x, y: -y }
+  }
+
+  // Earth frame -> view frame: spin about the axis, the axial tilt, then the drag's pitch.
+  view3([ex, ey, ez]) {
+    const { cosS, sinS, cosP, sinP } = this.view
+    const gx = ex * cosS + ez * sinS
+    const gy = ey
+    const gz = -ex * sinS + ez * cosS
+    const x = this.cosT * gx - this.sinT * gy
+    const ty = this.sinT * gx + this.cosT * gy
+    return [x, ty * cosP - gz * sinP, ty * sinP + gz * cosP]
   }
 }
 
@@ -154,6 +173,15 @@ function randomPoint(isLand) {
 
 function dot(a, b) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+function cross(a, b) {
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+}
+
+function unit(v) {
+  const n = Math.hypot(...v)
+  return n > 0 ? v.map((c) => c / n) : null
 }
 
 function inside(ring, x, y) {
