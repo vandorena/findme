@@ -1,4 +1,4 @@
-###findMe: a browser-based location finder that matches plane noise to live flight data.
+##findMe: a browser-based location finder that matches plane noise to live flight data.
 
 ## Credits
 
